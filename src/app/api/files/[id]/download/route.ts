@@ -5,7 +5,7 @@ import { createPresignedDownloadUrl } from "@/lib/aws/presign";
 import { writeAuditEvent } from "@/lib/repos/audit";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -14,6 +14,7 @@ export async function GET(
 
   const userId = session.user.id;
   const { id: fileId } = await params;
+  const json = new URL(request.url).searchParams.has("json");
 
   const file = await getFileById(userId, fileId);
   if (!file || file.status !== "available")
@@ -31,5 +32,7 @@ export async function GET(
     entityId: fileId,
   });
 
+  // ?json=1 returns the URL as JSON instead of redirecting — used by the media lightbox.
+  if (json) return NextResponse.json({ url: downloadUrl });
   return NextResponse.redirect(downloadUrl);
 }

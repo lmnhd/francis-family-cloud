@@ -1,149 +1,110 @@
 # Delivery Roadmap
 
-## Phase 0: Project Setup
+> This roadmap reflects the actual implementation path, which diverges from the original phased plan. See `docs/00-manifestation-plan.md` for the canonical build plan that was followed.
 
-Outcome: a deployable empty app with database and storage wiring.
+## Phase 0 — Foundation [COMPLETE]
 
-Tasks:
+Outcome: deployable app with DynamoDB and S3 wiring.
 
-- Create Next.js app in this directory.
-- Add linting, formatting, and TypeScript.
-- Configure database.
-- Configure S3 bucket and IAM policy.
-- Configure Vercel project and environment variables.
-- Add base layout and private app shell.
+Delivered:
+- Next.js 16, React 19, Tailwind v4, shadcn/ui scaffold.
+- zod env validation (`src/lib/env.ts`) with `SKIP_ENV_VALIDATION` CI escape hatch.
+- AWS SDK v3 client singletons (`src/lib/aws/s3.ts`, `src/lib/aws/ddb.ts`).
+- CDK stacks: S3 bucket (private, versioned, lifecycle rules, CORS), DynamoDB single-table (3 GSIs, TTL, PITR), IAM app user, AWS Backup plan, Secrets Manager for credentials.
+- Health check route (`/api/health`).
+- `(app)` and `(admin)` route groups, `Providers` wrapper.
+- All docs updated from Postgres to DynamoDB.
 
-Exit criteria:
+## Phase 1 — Identity [COMPLETE]
 
-- App deploys to Vercel.
-- Database migration runs.
-- Health route verifies database and S3 configuration.
+Outcome: admin-seeded user can sign in via name-pick then password.
 
-## Phase 1: Private Family Box MVP
+Delivered:
+- Auth.js v5 Credentials provider with JWT sessions.
+- `src/proxy.ts` (Next.js 16 proxy convention, Edge-safe JWT check via `@auth/core/jwt`).
+- `src/auth.config.ts` (Edge-safe callbacks) + `src/auth.ts` (full Credentials provider).
+- DynamoDB repos: `users.ts`, `roster.ts`.
+- Name-pick entry page (`/`) server-rendered from DynamoDB roster.
+- Password login page (`/login/[userId]`) — server component + client form with `useActionState`.
+- Rate limiting: 5 attempts / 15-minute TTL, DynamoDB-backed.
+- Audit events for login success/failure/rate-limit.
+- `scripts/seed-roster.ts` (`npm run seed`) — seeded: CC (admin), Precious, Jaz, Dessa, Bless, Isaac, Nijae.
+- `scripts/promote-admin.ts` (`npm run promote-admin`) — makes any seeded user an admin.
 
-Outcome: family members can upload, browse, and retrieve files.
+## Phase 2 — Family Box MVP [COMPLETE]
 
-Tasks:
+Outcome: upload, browse, download, share links, soft delete.
 
-- Add admin-managed family roster.
-- Add "select your name" entry screen.
-- Add password login/session handling after name selection.
-- Add member dashboard.
-- Add folder/file metadata model.
-- Add direct-to-S3 upload.
-- Add file browser.
-- Add search by file name.
-- Add download through presigned URL.
-- Add share-by-link for individual files.
-- Add preview and download for share links.
-- Add soft delete/trash.
+Delivered:
+- Root folder auto-created on first `/box` visit.
+- Drag-and-drop upload dropzone with XHR progress bar.
+- Single-part uploads (≤ 100 MB) and multipart uploads (100 MB – 5 GB).
+- File browser: list view and photo grid view.
+- Sort by date/name/size (server-side).
+- View toggle (list / grid) persisted in URL.
+- Folder creation, rename, navigation with breadcrumb.
+- File rename, move to folder, soft delete.
+- Trash view with restore.
+- Search by filename prefix (per-folder, cross-folder).
+- Public share links: 7-day expiry, revocable, `/s/[token]` page.
+- Photo thumbnails via presigned preview URLs (generated server-side).
+- Multi-select with bulk download and bulk delete.
+- File detail sheet (tap on mobile to see metadata + actions).
 
-Exit criteria:
+## Phase 3 — Admin and Recovery [COMPLETE]
 
-- A test user can upload and download files.
-- A test user can create and revoke a share link.
-- Files are private between users.
-- Admin can see user storage usage.
+Outcome: one admin can fully manage the app.
 
-## Phase 2: Admin and Recovery
+Delivered:
+- `/admin/users` — create, disable, enable, reset password.
+- `/admin/storage` — per-user storage totals (queries `byFileStatus` GSI).
+- `/admin/activity` — merged audit feed across all users (newest first).
+- `/admin/share-links` — all active public share links.
+- Admin password reset from the UI.
+- Restore deleted file from trash (admin or owner).
+- Daily cleanup cron (`/api/cron/cleanup`, Vercel Cron 03:00 UTC, `CRON_SECRET` bearer auth).
 
-Outcome: app is manageable by one family admin.
-
-Tasks:
-
-- Admin user management.
-- Password reset flow.
-- Storage usage dashboard.
-- Recent activity log.
-- Failed upload visibility.
-- Shared-link management.
-- Restore from trash.
-- S3 lifecycle cleanup rules.
-
-Exit criteria:
-
-- Admin can personally add a new family member to the roster.
-- Admin can see what failed.
-- Admin can restore a deleted file during retention window.
-
-## Phase 3: Provider Import Foundations
-
-Outcome: provider connections and import jobs are technically ready.
-
-Tasks:
-
-- Add provider connection table.
-- Add encrypted token storage.
-- Add import job model.
-- Add background worker loop.
-- Add import progress UI.
-- Add retry/cancel controls.
-
-Exit criteria:
-
-- A fake provider adapter can import files into S3.
-- Import progress survives page refresh.
-
-## Phase 4: Google Drive Import
-
-Outcome: Google Drive copy-in works.
-
-Tasks:
-
-- Register Google OAuth app.
-- Implement connect/disconnect.
-- Implement folder/file listing.
-- Implement selected file copy.
-- Implement error/retry UI.
-
-Exit criteria:
-
-- User imports selected Google Drive files into their box.
-
-## Phase 5: OneDrive and Dropbox Imports
-
-Outcome: the other major free cloud accounts are supported.
-
-Tasks:
-
-- Register Microsoft OAuth app.
-- Register Dropbox OAuth app.
-- Implement provider adapters using the same import contract.
-- Add provider-specific error handling.
-
-Exit criteria:
-
-- User imports selected OneDrive and Dropbox files into their box.
-
-## Phase 6: Polish and Hardening
+## Phase 4 — Polish [COMPLETE]
 
 Outcome: ready for family use.
 
-Tasks:
+Delivered:
+- Dark mode (next-themes, system preference default, sun/moon toggle).
+- Mobile-responsive layouts: collapsible sidebar, top icon bar on mobile.
+- File detail sheet on mobile tap (metadata + all actions without hover).
+- Grid view: checkboxes always visible on mobile; overlay actions desktop-only.
+- Storage warning banner at 80% and 100% of 5 GB limit.
+- Self-service password change (`/box/settings`).
+- Self-service display name edit (inline in sidebar).
+- AWS Backup plan (weekly, 90-day retention) in CDK.
+- `npm run gen-secret` helper for generating secrets on Windows.
 
-- Mobile layout pass.
-- Plain-English empty/error states.
-- Upload progress polish.
-- Storage limit warnings.
-- Database backups.
-- Security review.
-- Family walkthrough.
+## Beyond the Original Plan — Additional Features [COMPLETE]
 
-Exit criteria:
+These features were built after the core phases based on user direction:
 
-- The app is usable by a non-technical family member with minimal guidance.
+- **Multipart upload (up to 5 GB)** — S3 multipart upload with per-chunk progress.
+- **Family sharing** — share files and folders with all family members or specific individuals; `/box/family` page; read-only shared folder view.
+- **Move file** — move a file to any folder via a folder-tree picker modal.
+- **Media viewer** — in-app lightbox for images, video, and audio (see Phase 5).
 
-## Phase 7: iCloud Research
+## Phase 5 — Media Viewer [IN PROGRESS]
 
-Outcome: decide whether iCloud support is worth building.
+Outcome: files can be previewed in-app without downloading.
 
-Tasks:
+Planned:
+- yet-another-react-lightbox for images and videos.
+- PDF.js for PDF preview.
+- Native `<audio>` player for audio files.
+- Office documents (Word, Excel, PowerPoint) are download-only (no privacy-safe in-browser viewer exists).
 
-- Confirm current Apple-supported options.
-- Test manual browser upload from iCloud Drive.
-- Document any native-helper alternative.
-- Decide whether to leave iCloud as manual-only.
+## Deferred — Provider Imports
 
-Exit criteria:
+Google Drive, OneDrive, and Dropbox copy-in imports are deferred until the core box is stable and the family finds them necessary. iCloud has no viable public web import path and remains research-only.
 
-- Clear yes/no recommendation for iCloud.
+When implemented, provider imports will follow the original plan:
+- OAuth connect/disconnect per provider.
+- User selects files/folders to copy in.
+- Background job (Vercel Cron) copies files into the family box.
+- Import progress persists across page refreshes.
+- No continuous sync — copy-in only.

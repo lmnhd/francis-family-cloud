@@ -17,6 +17,7 @@ interface Props {
   selected?: boolean;
   anySelected?: boolean;
   onToggle?: () => void;
+  onPreview?: () => void;
 }
 
 export function FileRow({
@@ -25,6 +26,7 @@ export function FileRow({
   selected = false,
   anySelected = false,
   onToggle,
+  onPreview,
 }: Props) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
@@ -64,7 +66,7 @@ export function FileRow({
     <>
       {/* Tapping the row (on any device) opens the detail sheet */}
       <div
-        onClick={() => setShowSheet(true)}
+        onClick={() => { if (onPreview) { onPreview(); } else { setShowSheet(true); } }}
         className={cn(
           "group relative flex cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-3 hover:border-slate-300 dark:bg-slate-900 dark:hover:border-slate-600",
           selected

@@ -15,6 +15,7 @@ interface Props {
   selected?: boolean;
   anySelected?: boolean;
   onToggle?: () => void;
+  onPreview?: () => void;
 }
 
 export function FileGridItem({
@@ -23,6 +24,7 @@ export function FileGridItem({
   selected = false,
   anySelected = false,
   onToggle,
+  onPreview,
 }: Props) {
   const router = useRouter();
   const [showShare, setShowShare] = useState(false);
@@ -52,7 +54,7 @@ export function FileGridItem({
   return (
     <>
       <div
-        onClick={() => setShowSheet(true)}
+        onClick={() => { if (onPreview) { onPreview(); } else { setShowSheet(true); } }}
         className={cn(
           "group relative cursor-pointer overflow-hidden rounded-xl border bg-white dark:bg-slate-900",
           selected

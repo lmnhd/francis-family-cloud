@@ -20,6 +20,8 @@ The app uses a DynamoDB single-table design. All entities share one table per en
 | Audit event | `USER#<targetUserId>` | `AUDIT#<isoTs>#<eventId>` | `actorUserId`, `eventType`, `entityType`, `entityId`, `metadataJson`, `createdAt` |
 | Roster anchor | `ROSTER#ACTIVE` | `USER#<displayNameLower>` | `userId`, `displayName` — sparse index for the public name picker |
 | Login attempt counter | `LOGIN_ATTEMPT#<userId>` | `COUNT` | `attempts`, `ttl` (15-minute window) |
+| Family share | `SHARE#FAMILY` | `FILE#<fileId>` or `FOLDER#<folderId>` | `ownerUserId`, `type`, `resourceId`, `displayName`, `mimeType`, `sizeBytes`, `s3Key` (files only), `sharedAt` |
+| User share | `SHARE#USER#<targetUserId>` | `FILE#<fileId>` or `FOLDER#<folderId>` | `ownerUserId`, `targetUserId`, `type`, `resourceId`, `displayName`, `mimeType`, `sizeBytes`, `sharedAt` |
 
 File `status` values: `pending_upload`, `available`, `deleted`, `failed`.
 
@@ -79,3 +81,7 @@ Used for the trash view, pending-upload cleanup, and failed-item dashboards.
 | User's share links | GSI1, `GSI1PK = USER#<userId>` |
 | Admin: all share links | GSI1 scan (small user base) |
 | Audit feed for user | `PK = USER#<userId>`, `SK begins_with AUDIT#` |
+| All family-shared items | `PK = SHARE#FAMILY`, all SKs |
+| Items shared with me | `PK = SHARE#USER#<myId>`, all SKs |
+| Is a resource family-shared? | `GetItem(PK=SHARE#FAMILY, SK=FILE#<id>)` |
+| Is a resource shared with user? | `GetItem(PK=SHARE#USER#<id>, SK=FILE#<id>)` |
