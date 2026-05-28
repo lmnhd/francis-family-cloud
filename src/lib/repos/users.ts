@@ -96,6 +96,49 @@ export async function recordLastLogin(userId: string): Promise<void> {
   );
 }
 
+export async function updateDisplayName(
+  userId: string,
+  oldDisplayName: string,
+  newDisplayName: string
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  await Promise.all([
+    // Update profile
+    ddb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+        UpdateExpression: "SET displayName = :name, updatedAt = :now",
+        ExpressionAttributeValues: { ":name": newDisplayName, ":now": now },
+      })
+    ),
+    // Remove old roster anchor
+    ddb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: "ROSTER#ACTIVE",
+          SK: `USER#${oldDisplayName.toLowerCase()}`,
+        },
+      })
+    ),
+  ]);
+
+  // Write new roster anchor
+  await ddb.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        PK: "ROSTER#ACTIVE",
+        SK: `USER#${newDisplayName.toLowerCase()}`,
+        userId,
+        displayName: newDisplayName,
+      },
+    })
+  );
+}
+
 // ── Admin functions ──────────────────────────────────────────────────────────
 
 export async function listAllUsers(): Promise<User[]> {

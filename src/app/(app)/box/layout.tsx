@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Box, Search, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { EditNameButton } from "@/components/box/EditNameButton";
 import { signOutAction } from "./actions";
 
 export default async function BoxLayout({ children }: { children: ReactNode }) {
@@ -52,9 +53,7 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
           <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
             Francis Family Cloud
           </p>
-          <p className="mt-0.5 truncate text-sm font-medium text-slate-800 dark:text-slate-200">
-            {name}
-          </p>
+          <EditNameButton currentName={name} />
         </div>
 
         <nav className="flex-1 space-y-0.5 p-2">

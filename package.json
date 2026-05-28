@@ -6,9 +6,9 @@
     "build": "next build",
     "start": "next start -p 4000",
     "lint": "eslint",
-    "seed": "node --env-file=.env.local --import tsx/esm scripts/seed-roster.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed-roster.ts",
     "gen-secret": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
-    "promote-admin": "node --env-file=.env.local --import tsx/esm scripts/promote-admin.ts"
+    "promote-admin": "tsx --env-file=.env.local scripts/promote-admin.ts"
   },
   "dependencies": {
     "@auth/dynamodb-adapter": "^2.11.2",
