@@ -15,6 +15,16 @@ export class StorageStack extends cdk.Stack {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       autoDeleteObjects: false,
+      // Allow browsers to PUT files via presigned URLs from any origin.
+      // CORS doesn't bypass S3 auth — presigned URLs still require valid signatures.
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+          allowedOrigins: ["*"],
+          allowedHeaders: ["*"],
+          maxAge: 3600,
+        },
+      ],
       lifecycleRules: [
         {
           // Abort incomplete multipart uploads to avoid orphaned storage costs.
