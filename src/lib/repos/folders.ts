@@ -100,6 +100,23 @@ export async function listSubFolders(
   return (result.Items ?? []).map(itemToFolder);
 }
 
+export async function getFolderPath(
+  userId: string,
+  folderId: string
+): Promise<Folder[]> {
+  const path: Folder[] = [];
+  let currentId: string | null = folderId;
+
+  while (currentId) {
+    const folder = await getFolderById(userId, currentId);
+    if (!folder || folder.isRoot) break;
+    path.unshift(folder);
+    currentId = folder.parentFolderId;
+  }
+
+  return path;
+}
+
 export async function renameFolder(
   userId: string,
   folderId: string,

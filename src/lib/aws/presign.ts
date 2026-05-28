@@ -30,6 +30,15 @@ export async function createPresignedDownloadUrl(
   return getSignedUrl(s3, command, { expiresIn: 900 });
 }
 
+// Preview URL — no Content-Disposition so the browser displays inline (for img/video src).
+export async function createPresignedPreviewUrl(s3Key: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: s3Key,
+  });
+  return getSignedUrl(s3, command, { expiresIn: 3600 });
+}
+
 export async function headS3Object(
   s3Key: string
 ): Promise<{ sizeBytes: number; etag: string } | null> {
