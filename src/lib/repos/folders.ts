@@ -120,7 +120,13 @@ export async function getFolderPath(
   folderId: string
 ): Promise<Folder[]> {
   const path: Folder[] = [];
-  let currentId: string | null = folderId;
+
+  // Start from the *parent* of the target folder so the target itself
+  // is not included in the ancestor list (it becomes the page title).
+  const current = await getFolderById(userId, folderId);
+  if (!current) return [];
+
+  let currentId: string | null = current.parentFolderId;
 
   while (currentId) {
     const folder = await getFolderById(userId, currentId);

@@ -33,7 +33,6 @@ function sortFiles(files: FileRecord[], sortBy: string, sortDir: string): FileRe
         return dir * a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
       case "size":
         return dir * (a.sizeBytes - b.sizeBytes);
-      case "date":
       default:
         return dir * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
     }
@@ -67,63 +66,83 @@ export async function FolderContents({
 
   const isRoot = currentFolder.isRoot;
   const sortCombo = `${sortBy}_${sortDir}`;
+  const folderName = isRoot ? "My Box" : currentFolder.name;
+  const isEmpty = subFolders.length === 0 && files.length === 0;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <div className="mb-5">
-        <Breadcrumb
-          path={breadcrumbPath}
-          currentFolder={isRoot ? null : currentFolder}
-        />
-      </div>
+    <div className="flex h-full flex-col">
+      {/* ── Sticky header ─────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
+        <div className="mx-auto max-w-5xl px-4 md:px-6">
+          {/* Breadcrumb row */}
+          <div className="pt-3 pb-1">
+            <Breadcrumb
+              path={breadcrumbPath}
+              currentFolder={isRoot ? null : currentFolder}
+            />
+          </div>
 
-      <div className="space-y-4">
-        <StorageWarning usedBytes={storageBytes} limitBytes={STORAGE_LIMIT_BYTES} />
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold">
-            {isRoot ? "My Box" : currentFolder.name}
-          </h1>
-          <div className="flex items-center gap-2">
-            <NewFolderButton parentFolderId={currentFolder.id} />
-            <SortSelector current={sortCombo} viewMode={viewMode} />
-            <ViewToggle currentPath={currentPath} viewMode={viewMode} sortCombo={sortCombo} />
+          {/* Title + toolbar row */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              {folderName}
+            </h1>
+            <div className="flex items-center gap-1.5">
+              <NewFolderButton parentFolderId={currentFolder.id} />
+              <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+              <SortSelector current={sortCombo} viewMode={viewMode} />
+              <ViewToggle currentPath={currentPath} viewMode={viewMode} sortCombo={sortCombo} />
+            </div>
           </div>
         </div>
+      </header>
 
-        <UploadDropzone folderId={currentFolder.id} />
+      {/* ── Scrollable content ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-auto">
+        <div className="mx-auto max-w-5xl px-4 py-5 md:px-6">
+          <div className="space-y-4">
+            <StorageWarning usedBytes={storageBytes} limitBytes={STORAGE_LIMIT_BYTES} />
 
-        {subFolders.length === 0 && files.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">
-            {isRoot
-              ? "No files yet. Drop some above to get started."
-              : "This folder is empty. Drop files above or create a sub-folder."}
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {subFolders.length > 0 && (
-              <div className="space-y-1">
-                {subFolders.map((folder) => (
-                  <FolderRow key={folder.id} folder={folder} />
-                ))}
+            <UploadDropzone folderId={currentFolder.id} />
+
+            {isEmpty ? (
+              <div className="rounded-xl border border-dashed border-slate-200 py-16 text-center dark:border-slate-800">
+                <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
+                  {isRoot ? "No files yet." : "This folder is empty."}
+                </p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-600">
+                  Drop files above to get started.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Folders */}
+                {subFolders.length > 0 && (
+                  <section>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Folders
+                    </p>
+                    <div className="space-y-1">
+                      {subFolders.map((folder) => (
+                        <FolderRow key={folder.id} folder={folder} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Files */}
+                {files.length > 0 && (
+                  <section>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      {files.length} {files.length === 1 ? "File" : "Files"}
+                    </p>
+                    <FileList files={files} previewUrls={previewUrls} viewMode={viewMode} />
+                  </section>
+                )}
               </div>
             )}
-
-            {subFolders.length > 0 && files.length > 0 && (
-              <div className="border-t border-slate-200 dark:border-slate-700" />
-            )}
-
-            {files.length > 0 && (
-              <>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  {files.length} {files.length === 1 ? "file" : "files"}
-                </p>
-                <FileList files={files} previewUrls={previewUrls} viewMode={viewMode} />
-              </>
-            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

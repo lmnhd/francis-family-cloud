@@ -79,7 +79,7 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex h-full flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );
 }
