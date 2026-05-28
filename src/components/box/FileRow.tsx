@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FolderInput, Link2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { Download, FolderInput, Link2, MoreHorizontal, Pencil, Trash2, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FileRecord } from "@/lib/repos/files";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ShareModal } from "./ShareModal";
 import { MoveModal } from "./MoveModal";
 import { FileDetailSheet } from "./FileDetailSheet";
+import { FamilyShareModal } from "./FamilyShareModal";
 
 interface Props {
   file: FileRecord;
@@ -32,6 +33,7 @@ export function FileRow({
   const [showShare, setShowShare] = useState(false);
   const [showMove, setShowMove] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
+  const [showFamilyShare, setShowFamilyShare] = useState(false);
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -139,6 +141,7 @@ export function FileRow({
             <MenuButton onClick={() => { setRenaming(true); setShowMenu(false); }} icon={<Pencil className="size-3.5" />}>Rename</MenuButton>
             <MenuButton onClick={() => { setShowShare(true); setShowMenu(false); }} icon={<Link2 className="size-3.5" />}>Share link</MenuButton>
             <MenuButton onClick={() => { setShowMove(true); setShowMenu(false); }} icon={<FolderInput className="size-3.5" />}>Move to…</MenuButton>
+            <MenuButton onClick={() => { setShowFamilyShare(true); setShowMenu(false); }} icon={<Users className="size-3.5" />}>Family sharing…</MenuButton>
             <MenuButton onClick={handleDelete} icon={<Trash2 className="size-3.5" />} danger>Delete</MenuButton>
           </div>
         )}
@@ -147,6 +150,14 @@ export function FileRow({
       {showShare && <ShareModal file={file} onClose={() => setShowShare(false)} />}
       {showMove && <MoveModal file={file} onClose={() => setShowMove(false)} />}
       {showSheet && <FileDetailSheet file={file} onClose={() => setShowSheet(false)} />}
+      {showFamilyShare && (
+        <FamilyShareModal
+          type="file"
+          resourceId={file.id}
+          displayName={file.displayName}
+          onClose={() => setShowFamilyShare(false)}
+        />
+      )}
     </>
   );
 }

@@ -9,12 +9,14 @@ import {
   Link2,
   Pencil,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import type { FileRecord } from "@/lib/repos/files";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ShareModal } from "./ShareModal";
 import { MoveModal } from "./MoveModal";
+import { FamilyShareModal } from "./FamilyShareModal";
 
 interface Props {
   file: FileRecord;
@@ -25,6 +27,7 @@ export function FileDetailSheet({ file, onClose }: Props) {
   const router = useRouter();
   const [showShare, setShowShare] = useState(false);
   const [showMove, setShowMove] = useState(false);
+  const [showFamilyShare, setShowFamilyShare] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(file.displayName);
   const [busy, setBusy] = useState(false);
@@ -64,6 +67,8 @@ export function FileDetailSheet({ file, onClose }: Props) {
     return <ShareModal file={file} onClose={() => { setShowShare(false); onClose(); }} />;
   if (showMove)
     return <MoveModal file={file} onClose={() => { setShowMove(false); onClose(); }} />;
+  if (showFamilyShare)
+    return <FamilyShareModal type="file" resourceId={file.id} displayName={file.displayName} onClose={() => { setShowFamilyShare(false); onClose(); }} />;
 
   return (
     <div
@@ -151,6 +156,11 @@ export function FileDetailSheet({ file, onClose }: Props) {
               icon={<Pencil className="size-4" />}
               label="Rename"
               onClick={() => setRenaming(true)}
+            />
+            <ActionButton
+              icon={<Users className="size-4" />}
+              label="Family sharing"
+              onClick={() => setShowFamilyShare(true)}
             />
           </div>
           <button
