@@ -52,7 +52,7 @@ export function FileGridItem({
           onClick={onToggle}
           className={cn(
             "absolute left-2 top-2 z-10 transition-opacity",
-            anySelected || selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            anySelected || selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
           )}
           aria-label={selected ? "Deselect" : "Select"}
         >

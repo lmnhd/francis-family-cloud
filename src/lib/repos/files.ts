@@ -123,11 +123,11 @@ export async function listFilesInFolder(
       TableName: TABLE_NAME,
       IndexName: "byFolder",
       KeyConditionExpression: "GSI2PK = :pk",
-      FilterExpression: "#status <> :deleted",
+      FilterExpression: "#status = :available",
       ExpressionAttributeNames: { "#status": "status" },
       ExpressionAttributeValues: {
         ":pk": `USER#${userId}#FOLDER#${folderId}`,
-        ":deleted": "deleted",
+        ":available": "available",
       },
     })
   );

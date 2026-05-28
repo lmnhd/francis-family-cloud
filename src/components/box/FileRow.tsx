@@ -8,6 +8,7 @@ import type { FileRecord } from "@/lib/repos/files";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ShareModal } from "./ShareModal";
 import { MoveModal } from "./MoveModal";
+import { FileDetailSheet } from "./FileDetailSheet";
 
 interface Props {
   file: FileRecord;
@@ -30,8 +31,14 @@ export function FileRow({
   const [showMenu, setShowMenu] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showMove, setShowMove] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
 
-  const handleDownload = () => { window.location.href = `/api/files/${file.id}/download`; };
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.location.href = `/api/files/${file.id}/download`;
+  };
 
   const handleRename = async () => {
     if (newName.trim() === file.displayName) { setRenaming(false); return; }
@@ -44,7 +51,8 @@ export function FileRow({
     router.refresh();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm(`Delete "${file.displayName}"? It will move to trash.`)) return;
     await fetch(`/api/files/${file.id}`, { method: "DELETE" });
     router.refresh();
@@ -52,9 +60,11 @@ export function FileRow({
 
   return (
     <>
+      {/* Tapping the row (on any device) opens the detail sheet */}
       <div
+        onClick={() => setShowSheet(true)}
         className={cn(
-          "group relative flex items-center gap-3 rounded-lg border bg-white px-3 py-3 hover:border-slate-300 dark:bg-slate-900 dark:hover:border-slate-600",
+          "group relative flex cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-3 hover:border-slate-300 dark:bg-slate-900 dark:hover:border-slate-600",
           selected
             ? "border-blue-400 dark:border-blue-500"
             : "border-slate-200 dark:border-slate-700"
@@ -62,7 +72,7 @@ export function FileRow({
       >
         {/* Checkbox */}
         <button
-          onClick={onToggle}
+          onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
           className={cn(
             "shrink-0 transition-opacity",
             anySelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
@@ -87,7 +97,7 @@ export function FileRow({
 
         <FileThumbnail mimeType={file.mimeType} previewUrl={previewUrl} name={file.displayName} />
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" onClick={stop}>
           {renaming ? (
             <form onSubmit={(e) => { e.preventDefault(); handleRename(); }} className="flex items-center gap-2">
               <input
@@ -108,29 +118,35 @@ export function FileRow({
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <ActionButton onClick={handleDownload} title="Download"><Download className="size-3.5" /></ActionButton>
-          <ActionButton onClick={() => setShowShare(true)} title="Share"><Link2 className="size-3.5" /></ActionButton>
-          <ActionButton onClick={() => setShowMenu((v) => !v)} title="More"><MoreHorizontal className="size-3.5" /></ActionButton>
+        {/* Desktop quick actions — hover only */}
+        <div className="hidden shrink-0 items-center gap-1 md:flex md:opacity-0 md:transition-opacity md:group-hover:opacity-100" onClick={stop}>
+          <QuickButton onClick={handleDownload} title="Download"><Download className="size-3.5" /></QuickButton>
+          <QuickButton onClick={(e) => { e.stopPropagation(); setShowShare(true); }} title="Share"><Link2 className="size-3.5" /></QuickButton>
+          <QuickButton onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }} title="More"><MoreHorizontal className="size-3.5" /></QuickButton>
         </div>
 
+        {/* Mobile: always-visible ··· button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowSheet(true); }}
+          className="flex shrink-0 items-center justify-center rounded p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden"
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+
+        {/* Desktop dropdown menu */}
         {showMenu && (
-          <div className="absolute right-4 top-full z-10 mt-1 w-36 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-            <button onClick={() => { setRenaming(true); setShowMenu(false); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-              <Pencil className="size-3.5" /> Rename
-            </button>
-            <button onClick={() => { setShowMove(true); setShowMenu(false); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-              <FolderInput className="size-3.5" /> Move to…
-            </button>
-            <button onClick={() => { setShowMenu(false); handleDelete(); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
-              <Trash2 className="size-3.5" /> Delete
-            </button>
+          <div className="absolute right-4 top-full z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900" onClick={stop}>
+            <MenuButton onClick={() => { setRenaming(true); setShowMenu(false); }} icon={<Pencil className="size-3.5" />}>Rename</MenuButton>
+            <MenuButton onClick={() => { setShowShare(true); setShowMenu(false); }} icon={<Link2 className="size-3.5" />}>Share link</MenuButton>
+            <MenuButton onClick={() => { setShowMove(true); setShowMenu(false); }} icon={<FolderInput className="size-3.5" />}>Move to…</MenuButton>
+            <MenuButton onClick={handleDelete} icon={<Trash2 className="size-3.5" />} danger>Delete</MenuButton>
           </div>
         )}
       </div>
 
       {showShare && <ShareModal file={file} onClose={() => setShowShare(false)} />}
       {showMove && <MoveModal file={file} onClose={() => setShowMove(false)} />}
+      {showSheet && <FileDetailSheet file={file} onClose={() => setShowSheet(false)} />}
     </>
   );
 }
@@ -149,10 +165,26 @@ function FileThumbnail({ mimeType, previewUrl, name }: { mimeType: string; previ
   );
 }
 
-function ActionButton({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
+function QuickButton({ onClick, title, children }: { onClick: (e: React.MouseEvent) => void; title: string; children: React.ReactNode }) {
   return (
     <button onClick={onClick} title={title} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
       {children}
+    </button>
+  );
+}
+
+function MenuButton({ onClick, icon, children, danger }: { onClick: (e: React.MouseEvent) => void; icon: React.ReactNode; children: React.ReactNode; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2 px-3 py-1.5 text-sm",
+        danger
+          ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+      )}
+    >
+      {icon} {children}
     </button>
   );
 }
