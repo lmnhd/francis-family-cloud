@@ -5,8 +5,7 @@ import { createPresignedPreviewUrl } from "@/lib/aws/presign";
 import { Breadcrumb } from "@/components/box/Breadcrumb";
 import { NewFolderButton } from "@/components/box/NewFolderButton";
 import { FolderRow } from "@/components/box/FolderRow";
-import { FileRow } from "@/components/box/FileRow";
-import { FileGridItem } from "@/components/box/FileGridItem";
+import { FileList } from "@/components/box/FileList";
 import { ViewToggle } from "@/components/box/ViewToggle";
 import { UploadDropzone } from "@/components/box/UploadDropzone";
 import { StorageWarning } from "@/components/box/StorageWarning";
@@ -98,28 +97,11 @@ export async function FolderContents({
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   {files.length} {files.length === 1 ? "file" : "files"}
                 </p>
-
-                {viewMode === "grid" ? (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                    {files.map((file, i) => (
-                      <FileGridItem
-                        key={file.id}
-                        file={file}
-                        previewUrl={previewUrls[i]}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="relative space-y-1">
-                    {files.map((file, i) => (
-                      <FileRow
-                        key={file.id}
-                        file={file}
-                        previewUrl={previewUrls[i]}
-                      />
-                    ))}
-                  </div>
-                )}
+                <FileList
+                  files={files}
+                  previewUrls={previewUrls}
+                  viewMode={viewMode}
+                />
               </>
             )}
           </div>
