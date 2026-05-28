@@ -5,20 +5,23 @@ import { cn } from "@/lib/utils";
 interface Props {
   currentPath: string;
   viewMode: "list" | "grid";
+  sortCombo: string; // e.g. "date_desc"
 }
 
-export function ViewToggle({ currentPath, viewMode }: Props) {
+export function ViewToggle({ currentPath, viewMode, sortCombo }: Props) {
+  const sortParams = sortCombo !== "date_desc" ? `&sort=${sortCombo.split("_")[0]}&dir=${sortCombo.split("_")[1]}` : "";
+
   return (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
       <ToggleLink
-        href={`${currentPath}?view=list`}
+        href={`${currentPath}?view=list${sortParams}`}
         active={viewMode === "list"}
         label="List view"
       >
         <List className="size-4" />
       </ToggleLink>
       <ToggleLink
-        href={`${currentPath}?view=grid`}
+        href={`${currentPath}?view=grid${sortParams}`}
         active={viewMode === "grid"}
         label="Grid view"
       >

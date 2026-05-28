@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ folderId: string }>;
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; sort?: string; dir?: string }>;
 }
 
 export default async function SubFolderPage({ params, searchParams }: Props) {
@@ -16,8 +16,10 @@ export default async function SubFolderPage({ params, searchParams }: Props) {
   if (!session?.user?.id) redirect("/");
 
   const { folderId } = await params;
-  const { view } = await searchParams;
+  const { view, sort, dir } = await searchParams;
   const viewMode = view === "grid" ? "grid" : "list";
+  const sortBy = ["name", "size", "date"].includes(sort ?? "") ? sort! : "date";
+  const sortDir = dir === "asc" ? "asc" : "desc";
 
   const userId = session.user.id;
 
@@ -37,6 +39,8 @@ export default async function SubFolderPage({ params, searchParams }: Props) {
       breadcrumbPath={breadcrumbPath}
       storageBytes={storageBytes}
       viewMode={viewMode}
+      sortBy={sortBy}
+      sortDir={sortDir}
       currentPath={`/box/folder/${folderId}`}
     />
   );
