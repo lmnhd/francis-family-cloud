@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface UploadFile {
   name: string;
   state: "pending" | "uploading" | "done" | "error";
-  progress: number; // 0–100
+  progress: number;
   error?: string;
 }
 
@@ -27,25 +27,18 @@ export function UploadDropzone({ folderId }: Props) {
       const startIdx = uploads.length;
       setUploads((prev) => [
         ...prev,
-        ...files.map((f) => ({
-          name: f.name,
-          state: "pending" as const,
-          progress: 0,
-        })),
+        ...files.map((f) => ({ name: f.name, state: "pending" as const, progress: 0 })),
       ]);
 
       await Promise.allSettled(
         files.map(async (file, i) => {
           const idx = startIdx + i;
           const update = (patch: Partial<UploadFile>) =>
-            setUploads((prev) =>
-              prev.map((u, j) => (j === idx ? { ...u, ...patch } : u))
-            );
+            setUploads((prev) => prev.map((u, j) => (j === idx ? { ...u, ...patch } : u)));
 
           try {
             update({ state: "uploading", progress: 0 });
 
-            // 1. Request presigned URL
             const presignRes = await fetch("/api/files/presign", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -63,73 +56,45 @@ export function UploadDropzone({ folderId }: Props) {
             }
             const { fileId, uploadUrl, s3Key } = await presignRes.json();
 
-            // 2. Upload directly to S3 via XHR for progress tracking
             await new Promise<void>((resolve, reject) => {
               const xhr = new XMLHttpRequest();
               xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                  update({
-                    progress: Math.round((e.loaded / e.total) * 100),
-                  });
-                }
+                if (e.lengthComputable) update({ progress: Math.round((e.loaded / e.total) * 100) });
               };
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) resolve();
-                else reject(new Error(`S3 responded ${xhr.status}`));
-              };
+              xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`S3 responded ${xhr.status}`));
               xhr.onerror = () => reject(new Error("Network error"));
               xhr.open("PUT", uploadUrl);
-              xhr.setRequestHeader(
-                "Content-Type",
-                file.type || "application/octet-stream"
-              );
+              xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
               xhr.send(file);
             });
 
-            // 3. Confirm completion on the server
             const completeRes = await fetch(`/api/files/${fileId}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ s3Key }),
             });
-            if (!completeRes.ok) {
-              update({ state: "error", error: "Could not confirm upload" });
-              return;
-            }
+            if (!completeRes.ok) { update({ state: "error", error: "Could not confirm upload" }); return; }
 
             update({ state: "done", progress: 100 });
           } catch (err) {
-            update({
-              state: "error",
-              error: err instanceof Error ? err.message : "Upload failed",
-            });
+            update({ state: "error", error: err instanceof Error ? err.message : "Upload failed" });
           }
         })
       );
 
       router.refresh();
-      setTimeout(
-        () => setUploads((prev) => prev.filter((u) => u.state !== "done")),
-        2000
-      );
+      setTimeout(() => setUploads((prev) => prev.filter((u) => u.state !== "done")), 2000);
     },
     [folderId, router, uploads.length]
   );
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragging(false);
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length) uploadFiles(files);
-    },
+    (e: React.DragEvent) => { e.preventDefault(); setDragging(false); const f = Array.from(e.dataTransfer.files); if (f.length) uploadFiles(f); },
     [uploadFiles]
   );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length) uploadFiles(files);
-    e.target.value = "";
+    const f = Array.from(e.target.files ?? []); if (f.length) uploadFiles(f); e.target.value = "";
   };
 
   const active = uploads.filter((u) => u.state !== "done");
@@ -137,65 +102,43 @@ export function UploadDropzone({ folderId }: Props) {
   return (
     <div className="space-y-2">
       <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-8 transition-colors",
           dragging
-            ? "border-slate-400 bg-slate-100"
-            : "border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50"
+            ? "border-slate-400 bg-slate-100 dark:border-slate-500 dark:bg-slate-800"
+            : "border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800"
         )}
       >
-        <Upload className="size-6 text-slate-400" />
-        <p className="text-sm text-slate-500">
-          Drop files here or{" "}
-          <span className="font-medium text-slate-700">browse</span>
+        <Upload className="size-6 text-slate-400 dark:text-slate-500" />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Drop files here or <span className="font-medium text-slate-700 dark:text-slate-200">browse</span>
         </p>
-        <p className="text-xs text-slate-400">Up to 100 MB per file</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={onInputChange}
-        />
+        <p className="text-xs text-slate-400 dark:text-slate-500">Up to 100 MB per file</p>
+        <input ref={inputRef} type="file" multiple className="hidden" onChange={onInputChange} />
       </div>
 
       {active.length > 0 && (
         <ul className="space-y-1.5">
           {active.map((u, i) => (
-            <li
-              key={i}
-              className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-            >
+            <li key={i} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-center gap-2 px-3 py-2 text-sm">
-                <span className="flex-1 truncate text-slate-700">{u.name}</span>
+                <span className="flex-1 truncate text-slate-700 dark:text-slate-300">{u.name}</span>
                 {u.state === "error" ? (
-                  <span className="shrink-0 text-xs text-red-500">
-                    {u.error}
-                  </span>
+                  <span className="shrink-0 text-xs text-red-500">{u.error}</span>
                 ) : (
-                  <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                    {u.progress}%
-                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">{u.progress}%</span>
                 )}
               </div>
               {u.state === "uploading" && (
-                <div className="h-0.5 bg-slate-100">
-                  <div
-                    className="h-full bg-blue-500 transition-[width]"
-                    style={{ width: `${u.progress}%` }}
-                  />
+                <div className="h-0.5 bg-slate-100 dark:bg-slate-800">
+                  <div className="h-full bg-blue-500 transition-[width]" style={{ width: `${u.progress}%` }} />
                 </div>
               )}
-              {u.state === "error" && (
-                <div className="h-0.5 bg-red-200" />
-              )}
+              {u.state === "error" && <div className="h-0.5 bg-red-200 dark:bg-red-900" />}
             </li>
           ))}
         </ul>

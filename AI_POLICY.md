@@ -12,6 +12,7 @@ If a local instruction file conflicts with this policy, this file wins.
 2. Read [README.md](./README.md) and the project docs before asking questions about the codebase.
 3. Read the docs hub in `docs/` before making product or implementation assumptions.
 4. Treat local wrappers such as `AGENTS.md` as thin entry points only; they do not override this policy.
+5. Use the repo-wide `project-setup` skill for fresh project bootstrap or re-bootstrap tasks in this source directory.
 
 ## 2. Project Overview
 
@@ -117,3 +118,4 @@ Agents must always check `docs/` first before asking questions about the codebas
 3. Log process deviations and operator exceptions in [`docs/agent-exceptions.md`](./docs/agent-exceptions.md).
 4. Keep changes and explanations aligned with the current project plan.
 5. If a task affects user-visible behavior, update the matching docs in the same turn.
+6. If the setup skill is used, keep its references and the repo policy aligned with the scaffolded files.

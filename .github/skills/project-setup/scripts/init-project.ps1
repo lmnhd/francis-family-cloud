@@ -371,6 +371,39 @@ function Copy-CopilotSetupTemplate {
     if (Test-Path $templatePath) {
         # Copy the entire .github structure from template
         Copy-Item -Path "$templatePath\*" -Destination $targetPath -Recurse -Force
+
+        # Scrub copied skill/template files that may contain populated environment values.
+        $skillsPath = Join-Path $targetPath "skills"
+        if (Test-Path $skillsPath) {
+            $textExtensions = @(".md", ".markdown", ".mdx", ".txt", ".yaml", ".yml", ".json", ".ps1", ".ts", ".tsx", ".js", ".jsx", ".env", ".config", ".toml")
+            $secretKeys = @(
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "GOOGLE_API_KEY",
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "STRIPE_SECRET_KEY",
+                "NEXTAUTH_SECRET",
+                "AUTH_SECRET"
+            )
+
+            Get-ChildItem -Path $skillsPath -Recurse -File | ForEach-Object {
+                $file = $_
+                $ext = [System.IO.Path]::GetExtension($file.Name)
+                if ($textExtensions -contains $ext) {
+                    try {
+                        $content = Get-Content -Path $file.FullName -Raw -ErrorAction Stop
+                        foreach ($key in $secretKeys) {
+                            $content = [regex]::Replace($content, "(?m)^(\s*$key\s*=\s*).*$", '$1')
+                            $content = [regex]::Replace($content, "(?m)^(\s*$key\s*:\s*).*$", '$1')
+                        }
+                        Set-Content -Path $file.FullName -Value $content -Encoding UTF8
+                    } catch {
+                        Write-Host "  ⚠️ Skipped scrubbing $($file.FullName)" @Warning
+                    }
+                }
+            }
+        }
         
         # Update copilot-instructions.md with project-specific details
         $instructionsPath = Join-Path $targetPath "copilot-instructions.md"
@@ -390,6 +423,7 @@ function Copy-CopilotSetupTemplate {
             
             Write-Host "  ✓ Copilot setup template copied and customized" @Success
             Write-Host "  ✓ Included: agents, prompts, skills (brand-identity, frontend-design)" @Success
+            Write-Host "  ✓ Scrubbed copied .github/skills env values" @Success
         }
     } else {
         Write-Host "  ⚠️ Copilot setup template not found at $templatePath" @Warning

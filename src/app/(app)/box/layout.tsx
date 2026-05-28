@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Box, Search, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { signOutAction } from "./actions";
 
 export default async function BoxLayout({ children }: { children: ReactNode }) {
@@ -12,14 +13,16 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
   const name = session.user.name ?? "Family member";
 
   return (
-    <div className="flex h-screen flex-col bg-[#f3f0ea] text-slate-900 md:flex-row">
+    <div className="flex h-screen flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex-row">
       {/* ── Mobile top bar ─────────────────────────────────────────────── */}
-      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 md:hidden">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
             Francis Family Cloud
           </p>
-          <p className="truncate text-sm font-medium text-slate-800">{name}</p>
+          <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
+            {name}
+          </p>
         </div>
         <nav className="flex items-center gap-0.5">
           <MobileNavLink href="/box" label="Box">
@@ -31,10 +34,11 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
           <MobileNavLink href="/box/trash" label="Trash">
             <Trash2 className="size-5" />
           </MobileNavLink>
+          <ThemeToggle />
           <form action={signOutAction}>
             <button
               type="submit"
-              className="rounded-lg p-2 text-xs text-slate-500 hover:bg-slate-50"
+              className="rounded-lg p-2 text-xs text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               Out
             </button>
@@ -43,12 +47,12 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
-      <aside className="hidden w-52 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        <div className="border-b border-slate-100 px-4 py-4">
+      <aside className="hidden w-52 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:flex">
+        <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
             Francis Family Cloud
           </p>
-          <p className="mt-0.5 truncate text-sm font-medium text-slate-800">
+          <p className="mt-0.5 truncate text-sm font-medium text-slate-800 dark:text-slate-200">
             {name}
           </p>
         </div>
@@ -59,19 +63,19 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
           <SidebarLink href="/box/trash" icon={<Trash2 className="size-4" />} label="Trash" />
         </nav>
 
-        <div className="border-t border-slate-100 p-3">
+        <div className="flex items-center justify-between border-t border-slate-100 p-3 dark:border-slate-800">
           <form action={signOutAction}>
             <button
               type="submit"
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              className="rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
               Sign out
             </button>
           </form>
+          <ThemeToggle />
         </div>
       </aside>
 
-      {/* ── Content ─────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );
@@ -89,9 +93,9 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
     >
-      <span className="shrink-0 text-slate-400">{icon}</span>
+      <span className="shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
       {label}
     </Link>
   );
@@ -110,7 +114,7 @@ function MobileNavLink({
     <Link
       href={href}
       title={label}
-      className="rounded-lg p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+      className="rounded-lg p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
     >
       {children}
     </Link>

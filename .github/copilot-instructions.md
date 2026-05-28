@@ -12,6 +12,7 @@ This file is a project wrapper. Read [AI_POLICY.md](../AI_POLICY.md) first; it i
 
 ## Project-Specific Notes
 
+- Use the repo-wide `project-setup` skill for fresh app bootstrap or scaffold resets in this source directory.
 - Read [README.md](../README.md) for setup and project overview.
 - Read [docs/](../docs/) for product, architecture, and workflow details.
 - Keep business logic separate from framework handlers.

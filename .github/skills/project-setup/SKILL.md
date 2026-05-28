@@ -1,12 +1,12 @@
 ---
 name: project-setup
-description: Comprehensive Next.js 15 project setup with TypeScript, Tailwind CSS, and modern tooling. **CRITICAL**: Automatically inherits workspace-wide coding standards from master copilot-instructions, integrates job search context for portfolio projects, and populates platform-specific directories (.cursor, .vscode) with centralized configurations. Supports Next.js, TypeScript, C#, Python, TradingView, and other frameworks.
+description: Comprehensive project bootstrap skill for new repositories and source directories, including AI policy setup, thin framework wrappers, git initialization, and modern scaffolding for Next.js, TypeScript, C#, Python, TradingView, Rust, Go, and generic projects. Use when creating a new project, re-bootstraping an existing source directory, or wiring the repo-wide AI instruction files.
 license: Complete terms in LICENSE.txt
 ---
 
 # Project Setup Skill
 
-Initialize new projects across different frameworks with professional scaffolding, git initialization, and ready-to-develop structure.
+Initialize new projects across different frameworks with professional scaffolding, repo policy files, git initialization, and ready-to-develop structure.
 
 ## When to Use This Skill
 
@@ -14,6 +14,7 @@ Trigger this skill when:
 - Creating a new project in Projects-24/, Projects-25/, or Projects-26/
 - User provides project name, type (framework), and optionally a brief description
 - Need to scaffold boilerplate before handing off to development agent
+- Need to create or refresh AI policy files such as `AI_POLICY.md`, `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/critical.md`, or `.windsurf/rules.md`
 - Framework type is one of: Next.js, TypeScript, C#, Python, TradingView, Rust, Go, or unspecified (generic)
 
 **Do NOT use this skill to:** Modify existing projects, create features, or install npm packages (leave that for the development agent).
@@ -35,11 +36,11 @@ Ask user for:
 
 **Stop here if user hesitates on any required field—do NOT assume.**
 
-### Phase 1.5: Integrate Workspace Standards
+### Phase 1.5: Integrate AI Policy and Workspace Standards
 
 ### Phase 1.5: Template Structure Overview
 
-**CRITICAL**: The init-project.ps1 script automatically copies a complete `.github/` template structure from the `copilot_setup/` directory. This template includes:
+**CRITICAL**: The init-project.ps1 script automatically copies a complete `.github/` template structure from the `copilot_setup/` directory and then aligns the repo with any local `AI_POLICY.md` file. This template includes:
 
 - **copilot-instructions.md** - Pre-configured with universal coding standards and platform rules
 - **agents/** - Three-agent orchestration system (Plan/Execute/Verify)
@@ -52,6 +53,9 @@ The script will:
 3. Replace placeholders: project name, type, description, database, services
 4. Configure project year paths
 5. Apply framework-specific rules
+6. Create or refresh `AI_POLICY.md` when the source directory uses repo-wide AI policy files
+7. Keep thin wrappers pointed at `AI_POLICY.md` and avoid duplicating policy content
+8. Copy the `.github/skills/` directory into the new project and scrub secret-bearing env values before finalizing the copy
 
 **No manual configuration needed** - the template is production-ready from git init.
 
@@ -78,7 +82,7 @@ The script will:
 4. Generate AI tool rules files (`CLAUDE.md`, `.cursor/rules/critical.md`, `.windsurf/rules/critical.md`, `.agent/rules/critical.md`)
 5. Create base directory structure (scaffolding)
 6. Generate configuration files based on project type
-7. Create `.github/copilot-instructions.md` from GENERIC_PROJECT_RULES.md
+7. Create `.github/copilot-instructions.md` from GENERIC_PROJECT_RULES.md or align it to the repo policy wrapper flow
 8. Generate PDR.md (Project Design Record) template
 9. Create README.md for new developers
 10. Initialize `.gitignore` appropriate to framework
@@ -114,6 +118,7 @@ The script automatically copies the complete `copilot_setup/.github/` directory 
 4. **`skills/` - Embedded skill library**
    - `brand-identity/` - Complete design system with tokens, style guides, voice/tone
    - `frontend-design/` - UI component patterns and design guidelines
+   - Copy this directory into the new project and remove any populated API key values before handing it off
 
 **Customization:** The script automatically updates `copilot-instructions.md` with:
 - Project name, type, and description
@@ -149,6 +154,7 @@ The script automatically copies a starter `.env.local` file to the project root:
 - ⚠️ **Never commit `.env.local` to git** - `.gitignore` is pre-configured to exclude this file
 - ✅ **Ready to develop immediately** - Keys are pre-loaded so you can test API integrations without configuration
 - ⚠️ **Keep keys secure** - These are shared development keys; use personal keys for sensitive work
+- ⚠️ **When copying `.github/skills/` into new projects, redact any environment values that appear in skill notes or templates**
 
 **When to update:**
 1. After cloning, check that `.env.local` exists in project root
@@ -459,7 +465,8 @@ Test-Path CLAUDE.md
 ✅ AI tool rules files created for Cursor, Windsurf, Claude Code, and generic agents
 ✅ Configuration files scaffolded  
 ✅ `.github/copilot-instructions.md` in place  
-✅ `CLAUDE.md`, `.cursor/rules/critical.md`, `.windsurf/rules/critical.md`, `.agent/rules/critical.md` created
+✅ `CLAUDE.md`, `.cursor/rules/critical.md`, `.windsurf/rules/critical.md`, `.agent/rules/critical.md` created  
+✅ `AI_POLICY.md` created or aligned when the project uses repo-wide policy files
 ✅ PDR.md template ready for design decisions  
 ✅ README.md for new developers  
 
