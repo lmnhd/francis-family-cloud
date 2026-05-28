@@ -16,6 +16,34 @@ interface Props {
   folderId: string;
 }
 
+// Upload a single chunk via XHR. Returns the ETag header from S3.
+function uploadChunk(
+  url: string,
+  data: Blob,
+  mimeType: string,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.getResponseHeader("ETag") ?? "");
+      } else {
+        reject(new Error(`Upload responded ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", mimeType || "application/octet-stream");
+    xhr.send(data);
+  });
+}
+
 export function UploadDropzone({ folderId }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,18 +62,22 @@ export function UploadDropzone({ folderId }: Props) {
         files.map(async (file, i) => {
           const idx = startIdx + i;
           const update = (patch: Partial<UploadFile>) =>
-            setUploads((prev) => prev.map((u, j) => (j === idx ? { ...u, ...patch } : u)));
+            setUploads((prev) =>
+              prev.map((u, j) => (j === idx ? { ...u, ...patch } : u))
+            );
 
           try {
             update({ state: "uploading", progress: 0 });
+            const mime = file.type || "application/octet-stream";
 
+            // 1. Request presign (single or multipart)
             const presignRes = await fetch("/api/files/presign", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 folderId,
                 fileName: file.name,
-                mimeType: file.type || "application/octet-stream",
+                mimeType: mime,
                 sizeBytes: file.size,
               }),
             });
@@ -54,47 +86,91 @@ export function UploadDropzone({ folderId }: Props) {
               update({ state: "error", error });
               return;
             }
-            const { fileId, uploadUrl, s3Key } = await presignRes.json();
 
-            await new Promise<void>((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) update({ progress: Math.round((e.loaded / e.total) * 100) });
+            const presignData = await presignRes.json();
+            const { fileId, s3Key, isMultipart } = presignData;
+
+            let completeBody: object;
+
+            if (isMultipart) {
+              // ── Multipart upload ────────────────────────────────────────────
+              const { uploadId, parts, partSize } = presignData as {
+                uploadId: string;
+                parts: { partNumber: number; uploadUrl: string }[];
+                partSize: number;
               };
-              xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`S3 responded ${xhr.status}`));
-              xhr.onerror = () => reject(new Error("Network error"));
-              xhr.open("PUT", uploadUrl);
-              xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-              xhr.send(file);
-            });
 
+              let uploadedBytes = 0;
+              const uploadedParts: { partNumber: number; etag: string }[] = [];
+
+              for (const { partNumber, uploadUrl } of parts) {
+                const start = (partNumber - 1) * partSize;
+                const chunk = file.slice(start, start + partSize);
+
+                const etag = await uploadChunk(uploadUrl, chunk, mime, (loaded) => {
+                  const total = uploadedBytes + loaded;
+                  update({ progress: Math.round((total / file.size) * 100) });
+                });
+
+                uploadedParts.push({ partNumber, etag });
+                uploadedBytes += chunk.size;
+                update({ progress: Math.round((uploadedBytes / file.size) * 100) });
+              }
+
+              completeBody = { s3Key, uploadId, parts: uploadedParts };
+            } else {
+              // ── Single-part upload ──────────────────────────────────────────
+              const { uploadUrl } = presignData as { uploadUrl: string };
+              await uploadChunk(uploadUrl, file, mime, (loaded, total) => {
+                update({ progress: Math.round((loaded / total) * 100) });
+              });
+              completeBody = { s3Key };
+            }
+
+            // 3. Confirm with server
             const completeRes = await fetch(`/api/files/${fileId}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ s3Key }),
+              body: JSON.stringify(completeBody),
             });
-            if (!completeRes.ok) { update({ state: "error", error: "Could not confirm upload" }); return; }
+            if (!completeRes.ok) {
+              update({ state: "error", error: "Could not confirm upload" });
+              return;
+            }
 
             update({ state: "done", progress: 100 });
           } catch (err) {
-            update({ state: "error", error: err instanceof Error ? err.message : "Upload failed" });
+            update({
+              state: "error",
+              error: err instanceof Error ? err.message : "Upload failed",
+            });
           }
         })
       );
 
       router.refresh();
-      setTimeout(() => setUploads((prev) => prev.filter((u) => u.state !== "done")), 2000);
+      setTimeout(
+        () => setUploads((prev) => prev.filter((u) => u.state !== "done")),
+        2000
+      );
     },
     [folderId, router, uploads.length]
   );
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => { e.preventDefault(); setDragging(false); const f = Array.from(e.dataTransfer.files); if (f.length) uploadFiles(f); },
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const f = Array.from(e.dataTransfer.files);
+      if (f.length) uploadFiles(f);
+    },
     [uploadFiles]
   );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = Array.from(e.target.files ?? []); if (f.length) uploadFiles(f); e.target.value = "";
+    const f = Array.from(e.target.files ?? []);
+    if (f.length) uploadFiles(f);
+    e.target.value = "";
   };
 
   const active = uploads.filter((u) => u.state !== "done");
@@ -115,9 +191,10 @@ export function UploadDropzone({ folderId }: Props) {
       >
         <Upload className="size-6 text-slate-400 dark:text-slate-500" />
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Drop files here or <span className="font-medium text-slate-700 dark:text-slate-200">browse</span>
+          Drop files here or{" "}
+          <span className="font-medium text-slate-700 dark:text-slate-200">browse</span>
         </p>
-        <p className="text-xs text-slate-400 dark:text-slate-500">Up to 100 MB per file</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">Up to 5 GB per file</p>
         <input ref={inputRef} type="file" multiple className="hidden" onChange={onInputChange} />
       </div>
 
@@ -130,12 +207,17 @@ export function UploadDropzone({ folderId }: Props) {
                 {u.state === "error" ? (
                   <span className="shrink-0 text-xs text-red-500">{u.error}</span>
                 ) : (
-                  <span className="shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">{u.progress}%</span>
+                  <span className="shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">
+                    {u.progress}%
+                  </span>
                 )}
               </div>
               {u.state === "uploading" && (
                 <div className="h-0.5 bg-slate-100 dark:bg-slate-800">
-                  <div className="h-full bg-blue-500 transition-[width]" style={{ width: `${u.progress}%` }} />
+                  <div
+                    className="h-full bg-blue-500 transition-[width]"
+                    style={{ width: `${u.progress}%` }}
+                  />
                 </div>
               )}
               {u.state === "error" && <div className="h-0.5 bg-red-200 dark:bg-red-900" />}
@@ -146,3 +228,4 @@ export function UploadDropzone({ folderId }: Props) {
     </div>
   );
 }
+
