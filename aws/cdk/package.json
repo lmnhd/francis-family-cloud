@@ -1,0 +1,20 @@
+{
+  "name": "francis-family-cloud-aws-cdk",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "synth": "npx cdk synth",
+    "diff": "npx cdk diff",
+    "deploy": "npx cdk deploy --all",
+    "destroy": "npx cdk destroy --all"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

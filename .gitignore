@@ -1,0 +1,29 @@
+# Environment files
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+.env
+.env.*
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+out/
+cdk.out/
+.turbo/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE and local tool configs
+.cursor/
+.windsurf/
+.claude/
+idea.txt

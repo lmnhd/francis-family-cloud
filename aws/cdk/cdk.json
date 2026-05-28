@@ -1,0 +1,7 @@
+{
+  "app": "npx tsx bin/francis-family-cloud.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "package*.json"]
+  }
+}
