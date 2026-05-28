@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Box, Search, Trash2 } from "lucide-react";
+import { Box, Search, Settings, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { EditNameButton } from "@/components/box/EditNameButton";
@@ -35,6 +35,9 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
           <MobileNavLink href="/box/trash" label="Trash">
             <Trash2 className="size-5" />
           </MobileNavLink>
+          <MobileNavLink href="/box/settings" label="Settings">
+            <Settings className="size-5" />
+          </MobileNavLink>
           <ThemeToggle />
           <form action={signOutAction}>
             <button
@@ -60,6 +63,7 @@ export default async function BoxLayout({ children }: { children: ReactNode }) {
           <SidebarLink href="/box" icon={<Box className="size-4" />} label="My Box" />
           <SidebarLink href="/box/search" icon={<Search className="size-4" />} label="Search" />
           <SidebarLink href="/box/trash" icon={<Trash2 className="size-4" />} label="Trash" />
+          <SidebarLink href="/box/settings" icon={<Settings className="size-4" />} label="Settings" />
         </nav>
 
         <div className="flex items-center justify-between border-t border-slate-100 p-3 dark:border-slate-800">
