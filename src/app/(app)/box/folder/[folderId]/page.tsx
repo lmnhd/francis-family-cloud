@@ -8,13 +8,17 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ folderId: string }>;
+  searchParams: Promise<{ view?: string }>;
 }
 
-export default async function SubFolderPage({ params }: Props) {
+export default async function SubFolderPage({ params, searchParams }: Props) {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
 
   const { folderId } = await params;
+  const { view } = await searchParams;
+  const viewMode = view === "grid" ? "grid" : "list";
+
   const userId = session.user.id;
 
   const [folder, storageBytes] = await Promise.all([
@@ -24,7 +28,6 @@ export default async function SubFolderPage({ params }: Props) {
 
   if (!folder || folder.deletedAt) notFound();
 
-  // Build breadcrumb path (ancestors between root and this folder, exclusive).
   const breadcrumbPath = await getFolderPath(userId, folderId);
 
   return (
@@ -33,6 +36,8 @@ export default async function SubFolderPage({ params }: Props) {
       currentFolder={folder}
       breadcrumbPath={breadcrumbPath}
       storageBytes={storageBytes}
+      viewMode={viewMode}
+      currentPath={`/box/folder/${folderId}`}
     />
   );
 }

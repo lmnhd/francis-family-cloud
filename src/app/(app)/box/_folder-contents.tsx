@@ -1,6 +1,3 @@
-// Shared server component used by /box (root) and /box/folder/[id].
-// The underscore prefix makes Next.js treat this as a private file (not a route).
-
 import type { Folder } from "@/lib/repos/folders";
 import { listSubFolders } from "@/lib/repos/folders";
 import { listFilesInFolder } from "@/lib/repos/files";
@@ -9,6 +6,8 @@ import { Breadcrumb } from "@/components/box/Breadcrumb";
 import { NewFolderButton } from "@/components/box/NewFolderButton";
 import { FolderRow } from "@/components/box/FolderRow";
 import { FileRow } from "@/components/box/FileRow";
+import { FileGridItem } from "@/components/box/FileGridItem";
+import { ViewToggle } from "@/components/box/ViewToggle";
 import { UploadDropzone } from "@/components/box/UploadDropzone";
 import { StorageWarning } from "@/components/box/StorageWarning";
 
@@ -19,6 +18,8 @@ interface Props {
   currentFolder: Folder;
   breadcrumbPath: Folder[];
   storageBytes: number;
+  viewMode: "list" | "grid";
+  currentPath: string;
 }
 
 export async function FolderContents({
@@ -26,13 +27,14 @@ export async function FolderContents({
   currentFolder,
   breadcrumbPath,
   storageBytes,
+  viewMode,
+  currentPath,
 }: Props) {
   const [subFolders, files] = await Promise.all([
     listSubFolders(userId, currentFolder.id),
     listFilesInFolder(userId, currentFolder.id),
   ]);
 
-  // Generate presigned preview URLs for images only — getSignedUrl is pure crypto, no network call.
   const previewUrls = await Promise.all(
     files.map((f) =>
       f.mimeType.startsWith("image/")
@@ -44,7 +46,7 @@ export async function FolderContents({
   const isRoot = currentFolder.isRoot;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
       {/* Breadcrumb */}
       <div className="mb-5">
         <Breadcrumb
@@ -57,11 +59,14 @@ export async function FolderContents({
         <StorageWarning usedBytes={storageBytes} limitBytes={STORAGE_LIMIT_BYTES} />
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">
             {isRoot ? "My Box" : currentFolder.name}
           </h1>
-          <NewFolderButton parentFolderId={currentFolder.id} />
+          <div className="flex items-center gap-2">
+            <NewFolderButton parentFolderId={currentFolder.id} />
+            <ViewToggle currentPath={currentPath} viewMode={viewMode} />
+          </div>
         </div>
 
         <UploadDropzone folderId={currentFolder.id} />
@@ -73,13 +78,16 @@ export async function FolderContents({
               : "This folder is empty. Drop files above or create a sub-folder."}
           </p>
         ) : (
-          <div className="space-y-1.5">
-            {/* Folders first */}
-            {subFolders.map((folder) => (
-              <FolderRow key={folder.id} folder={folder} />
-            ))}
+          <div className="space-y-3">
+            {/* Folders always in list view */}
+            {subFolders.length > 0 && (
+              <div className="space-y-1">
+                {subFolders.map((folder) => (
+                  <FolderRow key={folder.id} folder={folder} />
+                ))}
+              </div>
+            )}
 
-            {/* Divider between folders and files */}
             {subFolders.length > 0 && files.length > 0 && (
               <div className="border-t border-slate-200 dark:border-slate-700" />
             )}
@@ -90,11 +98,28 @@ export async function FolderContents({
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   {files.length} {files.length === 1 ? "file" : "files"}
                 </p>
-                <div className="relative space-y-1">
-                  {files.map((file, i) => (
-                    <FileRow key={file.id} file={file} previewUrl={previewUrls[i]} />
-                  ))}
-                </div>
+
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {files.map((file, i) => (
+                      <FileGridItem
+                        key={file.id}
+                        file={file}
+                        previewUrl={previewUrls[i]}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="relative space-y-1">
+                    {files.map((file, i) => (
+                      <FileRow
+                        key={file.id}
+                        file={file}
+                        previewUrl={previewUrls[i]}
+                      />
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
