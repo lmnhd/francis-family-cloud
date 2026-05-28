@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { getFolderById, createFolder } from "@/lib/repos/folders";
+import { listAllFolders, getFolderById, createFolder } from "@/lib/repos/folders";
+
+// GET — list all folders for the current user (used by the move-file picker).
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const folders = await listAllFolders(session.user.id);
+  return NextResponse.json({ folders });
+}
 
 const schema = z.object({
   name: z.string().min(1).max(100),

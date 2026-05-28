@@ -172,6 +172,30 @@ export async function searchFilesInFolder(
   return (result.Items ?? []).map(itemToFile);
 }
 
+export async function moveFile(
+  userId: string,
+  fileId: string,
+  newFolderId: string
+): Promise<void> {
+  const file = await getFileById(userId, fileId);
+  if (!file) throw new Error("File not found");
+
+  const now = new Date().toISOString();
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `USER#${userId}`, SK: `FILE#${fileId}` },
+      UpdateExpression:
+        "SET folderId = :fid, GSI2PK = :gsi2pk, updatedAt = :now",
+      ExpressionAttributeValues: {
+        ":fid": newFolderId,
+        ":gsi2pk": `USER#${userId}#FOLDER#${newFolderId}`,
+        ":now": now,
+      },
+    })
+  );
+}
+
 export async function renameFile(
   userId: string,
   fileId: string,

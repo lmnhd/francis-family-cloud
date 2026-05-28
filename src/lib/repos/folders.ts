@@ -100,6 +100,21 @@ export async function listSubFolders(
   return (result.Items ?? []).map(itemToFolder);
 }
 
+export async function listAllFolders(userId: string): Promise<Folder[]> {
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+      FilterExpression: "attribute_not_exists(deletedAt)",
+      ExpressionAttributeValues: {
+        ":pk": `USER#${userId}`,
+        ":prefix": "FOLDER#",
+      },
+    })
+  );
+  return (result.Items ?? []).map(itemToFolder);
+}
+
 export async function getFolderPath(
   userId: string,
   folderId: string

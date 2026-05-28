@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Link2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { Download, FolderInput, Link2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FileRecord } from "@/lib/repos/files";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ShareModal } from "./ShareModal";
+import { MoveModal } from "./MoveModal";
 
 interface Props {
   file: FileRecord;
@@ -28,6 +29,7 @@ export function FileRow({
   const [newName, setNewName] = useState(file.displayName);
   const [showMenu, setShowMenu] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showMove, setShowMove] = useState(false);
 
   const handleDownload = () => { window.location.href = `/api/files/${file.id}/download`; };
 
@@ -117,6 +119,9 @@ export function FileRow({
             <button onClick={() => { setRenaming(true); setShowMenu(false); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
               <Pencil className="size-3.5" /> Rename
             </button>
+            <button onClick={() => { setShowMove(true); setShowMenu(false); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+              <FolderInput className="size-3.5" /> Move to…
+            </button>
             <button onClick={() => { setShowMenu(false); handleDelete(); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
               <Trash2 className="size-3.5" /> Delete
             </button>
@@ -125,6 +130,7 @@ export function FileRow({
       </div>
 
       {showShare && <ShareModal file={file} onClose={() => setShowShare(false)} />}
+      {showMove && <MoveModal file={file} onClose={() => setShowMove(false)} />}
     </>
   );
 }
