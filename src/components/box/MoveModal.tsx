@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Folder, X } from "lucide-react";
 import type { Folder as FolderType } from "@/lib/repos/folders";
-import type { FileRecord } from "@/lib/repos/files";
 
 interface FolderItem {
   folder: FolderType;
   depth: number;
 }
 
-// Depth-first traversal to produce an ordered flat list with nesting depth.
 function buildOrderedList(folders: FolderType[]): FolderItem[] {
   const result: FolderItem[] = [];
 
@@ -33,12 +30,16 @@ function buildOrderedList(folders: FolderType[]): FolderItem[] {
 }
 
 interface Props {
-  file: FileRecord;
+  /** Label shown in the modal header (file name or "3 files"). */
+  title: string;
+  /** Folder to dim as "current" (omit for bulk move). */
+  currentFolderId?: string;
+  /** Called with the chosen destination folder ID. */
+  onMove: (folderId: string) => Promise<void>;
   onClose: () => void;
 }
 
-export function MoveModal({ file, onClose }: Props) {
-  const router = useRouter();
+export function MoveModal({ title, currentFolderId, onMove, onClose }: Props) {
   const [items, setItems] = useState<FolderItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,19 +55,14 @@ export function MoveModal({ file, onClose }: Props) {
   }, []);
 
   const handleMove = async () => {
-    if (!selectedId || selectedId === file.folderId) return;
+    if (!selectedId) return;
     setMoving(true);
-    await fetch(`/api/files/${file.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderId: selectedId }),
-    });
+    await onMove(selectedId);
     setMoving(false);
     onClose();
-    router.refresh();
   };
 
-  const canMove = !!selectedId && selectedId !== file.folderId;
+  const canMove = !!selectedId && selectedId !== currentFolderId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -75,10 +71,10 @@ export function MoveModal({ file, onClose }: Props) {
         <div className="flex items-start justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
           <div>
             <h2 className="font-semibold text-slate-900 dark:text-slate-100">
-              Move file
+              Move to…
             </h2>
             <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
-              {file.displayName}
+              {title}
             </p>
           </div>
           <button
@@ -105,7 +101,7 @@ export function MoveModal({ file, onClose }: Props) {
 
           {!loading &&
             items.map(({ folder, depth }) => {
-              const isCurrent = folder.id === file.folderId;
+              const isCurrent = folder.id === currentFolderId;
               const isSelected = folder.id === selectedId;
               return (
                 <button

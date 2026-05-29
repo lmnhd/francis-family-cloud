@@ -66,7 +66,23 @@ export function FileDetailSheet({ file, onClose }: Props) {
   if (showShare)
     return <ShareModal file={file} onClose={() => { setShowShare(false); onClose(); }} />;
   if (showMove)
-    return <MoveModal file={file} onClose={() => { setShowMove(false); onClose(); }} />;
+    return (
+      <MoveModal
+        title={file.displayName}
+        currentFolderId={file.folderId}
+        onMove={async (folderId) => {
+          await fetch(`/api/files/${file.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folderId }),
+          });
+          setShowMove(false);
+          onClose();
+          router.refresh();
+        }}
+        onClose={() => { setShowMove(false); onClose(); }}
+      />
+    );
   if (showFamilyShare)
     return <FamilyShareModal type="file" resourceId={file.id} displayName={file.displayName} onClose={() => { setShowFamilyShare(false); onClose(); }} />;
 

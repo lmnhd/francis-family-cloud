@@ -150,7 +150,21 @@ export function FileRow({
       </div>
 
       {showShare && <ShareModal file={file} onClose={() => setShowShare(false)} />}
-      {showMove && <MoveModal file={file} onClose={() => setShowMove(false)} />}
+      {showMove && (
+        <MoveModal
+          title={file.displayName}
+          currentFolderId={file.folderId}
+          onMove={async (folderId) => {
+            await fetch(`/api/files/${file.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ folderId }),
+            });
+            router.refresh();
+          }}
+          onClose={() => setShowMove(false)}
+        />
+      )}
       {showSheet && <FileDetailSheet file={file} onClose={() => setShowSheet(false)} />}
       {showFamilyShare && (
         <FamilyShareModal
