@@ -21,10 +21,14 @@ export const authConfig = {
       }
       return true;
     },
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session: sessionData }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+      }
+      // Handle useSession().update({ name }) after a display-name change.
+      if (trigger === "update" && (sessionData as { name?: string })?.name) {
+        token.name = (sessionData as { name: string }).name;
       }
       return token;
     },

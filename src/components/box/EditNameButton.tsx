@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface Props {
   currentName: string;
@@ -10,6 +11,7 @@ interface Props {
 
 export function EditNameButton({ currentName }: Props) {
   const router = useRouter();
+  const { update } = useSession();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentName);
   const [error, setError] = useState("");
@@ -35,6 +37,10 @@ export function EditNameButton({ currentName }: Props) {
       setError(msg ?? "Could not save");
       return;
     }
+
+    // Update the JWT so the new name is reflected immediately everywhere
+    // without requiring a re-login.
+    await update({ name: trimmed });
 
     setEditing(false);
     setError("");
