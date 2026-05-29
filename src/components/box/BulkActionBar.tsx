@@ -73,7 +73,7 @@ export function BulkActionBar({
         })
       )
     );
-    onDeleted(); // clear selection
+    onDeleted();
     router.refresh();
   };
 
@@ -81,65 +81,62 @@ export function BulkActionBar({
 
   return (
     <>
-      <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4">
-        <div className="flex items-center gap-1 rounded-2xl bg-slate-900 px-2 py-2 text-white shadow-2xl ring-1 ring-white/10 dark:bg-white dark:text-slate-900 dark:ring-slate-200">
+      {/* Full-width on mobile (with safe-area padding), centered pill on desktop */}
+      <div className="fixed inset-x-3 bottom-4 z-50 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:px-4">
+        <div className="flex items-center justify-between gap-1 rounded-2xl bg-slate-900 px-2 py-2 text-white shadow-2xl ring-1 ring-white/10 dark:bg-white dark:text-slate-900 dark:ring-slate-200 sm:justify-start">
           {/* Count + select all */}
           <div className="flex items-center gap-1 px-2">
             <span className="text-sm font-semibold tabular-nums">{count}</span>
-            <span className="text-sm text-white/60 dark:text-slate-500">
+            <span className="hidden text-sm text-white/60 dark:text-slate-500 sm:inline">
               {count === 1 ? "file" : "files"}
             </span>
             {count < totalCount && (
               <button
                 onClick={onSelectAll}
-                title="Select all"
-                className="ml-1 flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white dark:text-slate-500 dark:hover:bg-slate-100 dark:hover:text-slate-700"
+                title={`Select all ${totalCount}`}
+                className="ml-1 flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white dark:text-slate-500 dark:hover:bg-slate-100 dark:hover:text-slate-700"
               >
                 <CheckSquare className="size-3.5" />
-                All {totalCount}
+                <span className="tabular-nums">{totalCount}</span>
               </button>
             )}
           </div>
 
-          <div className="h-6 w-px bg-white/15 dark:bg-slate-200" />
+          <div className="h-6 w-px shrink-0 bg-white/15 dark:bg-slate-200" />
 
-          {/* Download */}
-          <button
-            onClick={handleDownload}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-white/10 disabled:opacity-50 dark:hover:bg-slate-100"
-          >
-            <Download className="size-4" />
-            {downloading ? "Downloading…" : "Download"}
-          </button>
+          {/* Actions — icon-only on mobile, icon + label on sm+ */}
+          <div className="flex items-center gap-0.5">
+            <BarButton
+              onClick={handleDownload}
+              disabled={busy}
+              title="Download"
+              icon={<Download className="size-4" />}
+              label={downloading ? "Downloading…" : "Download"}
+            />
+            <BarButton
+              onClick={() => setShowMove(true)}
+              disabled={busy}
+              title="Move to folder"
+              icon={<FolderInput className="size-4" />}
+              label="Move"
+            />
+            <BarButton
+              onClick={handleDelete}
+              disabled={busy}
+              title="Delete"
+              icon={<Trash2 className="size-4" />}
+              label={deleting ? "Deleting…" : "Delete"}
+              danger
+            />
+          </div>
 
-          {/* Move */}
-          <button
-            onClick={() => setShowMove(true)}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-white/10 disabled:opacity-50 dark:hover:bg-slate-100"
-          >
-            <FolderInput className="size-4" />
-            Move to…
-          </button>
-
-          {/* Delete */}
-          <button
-            onClick={handleDelete}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-red-400 hover:bg-white/10 disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-50"
-          >
-            <Trash2 className="size-4" />
-            {deleting ? "Deleting…" : "Delete"}
-          </button>
-
-          <div className="h-6 w-px bg-white/15 dark:bg-slate-200" />
+          <div className="h-6 w-px shrink-0 bg-white/15 dark:bg-slate-200" />
 
           {/* Dismiss */}
           <button
             onClick={onClear}
             title="Clear selection"
-            className="rounded-xl p-2 hover:bg-white/10 dark:hover:bg-slate-100"
+            className="shrink-0 rounded-xl p-2 hover:bg-white/10 dark:hover:bg-slate-100"
           >
             <X className="size-4" />
           </button>
@@ -154,5 +151,37 @@ export function BulkActionBar({
         />
       )}
     </>
+  );
+}
+
+function BarButton({
+  onClick,
+  disabled,
+  title,
+  icon,
+  label,
+  danger,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  title: string;
+  icon: React.ReactNode;
+  label: string;
+  danger?: boolean;
+}) {
+  const colorClasses = danger
+    ? "text-red-400 dark:text-red-500 hover:bg-white/10 dark:hover:bg-red-50"
+    : "hover:bg-white/10 dark:hover:bg-slate-100";
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`flex shrink-0 items-center gap-1.5 rounded-xl p-2 text-sm font-medium disabled:opacity-50 sm:px-3 ${colorClasses}`}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
