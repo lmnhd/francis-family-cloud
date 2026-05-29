@@ -69,13 +69,16 @@ export function EditNameButton({ currentName }: Props) {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="group flex items-center gap-1.5 text-left"
+      className="group flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left"
       title="Edit your name"
     >
       <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
         {currentName}
       </span>
-      <Pencil className="size-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
+      {/* Always visible on mobile (no hover); fades in on hover for desktop */}
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-slate-800 sm:opacity-0 sm:group-hover:opacity-100">
+        <Pencil className="size-3.5" />
+      </span>
     </button>
   );
 }
