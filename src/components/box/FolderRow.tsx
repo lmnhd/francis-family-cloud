@@ -3,15 +3,26 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Folder, Pencil, Users, X } from "lucide-react";
+import { ChevronRight, Folder, Pencil, Trash2, Users, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Folder as FolderType } from "@/lib/repos/folders";
 import { FamilyShareModal } from "./FamilyShareModal";
 
 interface Props {
   folder: FolderType;
+  selected?: boolean;
+  anySelected?: boolean;
+  onToggle?: () => void;
+  onDelete?: () => void;
 }
 
-export function FolderRow({ folder }: Props) {
+export function FolderRow({
+  folder,
+  selected = false,
+  anySelected = false,
+  onToggle,
+  onDelete,
+}: Props) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(folder.name);
@@ -31,7 +42,50 @@ export function FolderRow({ folder }: Props) {
 
   return (
     <>
-      <div className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
+      <div
+        className={cn(
+          "group flex items-center gap-3 rounded-lg border bg-white px-4 py-3 hover:border-slate-300 dark:bg-slate-900 dark:hover:border-slate-600",
+          selected
+            ? "border-blue-400 dark:border-blue-500"
+            : "border-slate-200 dark:border-slate-700"
+        )}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
+          className={cn(
+            "shrink-0 transition-opacity",
+            anySelected || selected
+              ? "opacity-100"
+              : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          )}
+          aria-label={selected ? "Deselect folder" : "Select folder"}
+        >
+          <span
+            className={cn(
+              "flex size-5 items-center justify-center rounded border-2 transition-colors",
+              selected
+                ? "border-blue-500 bg-blue-500 text-white dark:border-blue-400 dark:bg-blue-400"
+                : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
+            )}
+          >
+            {selected && (
+              <svg viewBox="0 0 10 8" className="size-3 fill-current">
+                <path
+                  d="M1 4l3 3 5-6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </span>
+        </button>
+
         <Folder className="size-5 shrink-0 text-slate-400 dark:text-slate-500" />
 
         <div className="min-w-0 flex-1">
@@ -75,6 +129,13 @@ export function FolderRow({ folder }: Props) {
             className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
           >
             <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={() => onDelete?.()}
+            title="Delete folder"
+            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600 dark:hover:bg-slate-800"
+          >
+            <Trash2 className="size-3.5" />
           </button>
           <ChevronRight className="size-4 text-slate-300 dark:text-slate-600" />
         </div>

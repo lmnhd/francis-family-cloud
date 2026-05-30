@@ -20,6 +20,8 @@ export type AuditEventType =
   | "file.download"
   | "file.delete"
   | "file.restore"
+  | "folder.delete"
+  | "import.dropbox.file"
   | "share.create"
   | "share.revoke"
   | "share.access"

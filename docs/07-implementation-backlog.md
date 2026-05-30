@@ -108,8 +108,10 @@ Items marked ✅ are complete. Items marked 🔜 are next. Items marked ⏸ are 
 
 ## Future Considerations
 
+Folder deletion is now implemented as recursive delete of the folder tree and its contents.
+
 - Video thumbnail generation (requires server-side ffmpeg or AWS MediaConvert).
+- HEIC image thumbnails via server-side conversion to JPEG.
 - Storage limit per user (currently soft-warn only, no hard enforcement).
 - Email-based password reset (currently admin-only reset).
-- Folder deletion (currently blocked; requires clearing all files inside first).
 - Admin ability to download any family member's file (product decision pending).

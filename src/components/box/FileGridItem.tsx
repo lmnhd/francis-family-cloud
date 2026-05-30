@@ -42,7 +42,6 @@ export function FileGridItem({
     router.refresh();
   };
 
-  const isImage = file.mimeType.startsWith("image/");
   const emoji = file.mimeType.startsWith("video/")
     ? "🎬"
     : file.mimeType === "application/pdf"
@@ -100,7 +99,7 @@ export function FileGridItem({
 
         {/* Thumbnail */}
         <div className="aspect-square w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-          {isImage && previewUrl ? (
+          {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewUrl}

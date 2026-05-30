@@ -38,18 +38,26 @@ Reference: https://learn.microsoft.com/en-us/onedrive/developer/rest-api/getting
 
 ### Dropbox
 
-Feasibility: good.
+Status: first adapter implemented.
 
 Dropbox supports OAuth 2.0 and scoped app access. Prefer narrow scopes and user-selected imports.
 
 Recommended UX:
 
-- Connect Dropbox.
+- Connect Dropbox through OAuth.
 - Show folders/files.
-- Let user select folders/files to import.
-- Copy into `Imported from Dropbox`.
+- Let user select files to import.
+- Copy selected files into the user's box. Current implementation imports into the root box and caps direct copy-in at 100 MB; larger jobs should move through the deferred background importer.
 
 Reference: https://developers.dropbox.com/oauth-guide
+
+Implemented routes:
+
+- `GET /api/imports/dropbox/connect`
+- `GET /api/imports/dropbox/callback`
+- `GET /api/imports/dropbox/list?path=<dropbox-path>`
+- `POST /api/imports/dropbox/import`
+- `POST /api/imports/dropbox/disconnect`
 
 ### iCloud Drive
 
@@ -115,4 +123,3 @@ Provider imports will fail sometimes. Make failure visible and boring:
 ## Scoping Rule
 
 Do not build continuous sync in version one. A one-way copy is easier to explain, easier to secure, and much less likely to surprise family members.
-

@@ -15,6 +15,7 @@ The app uses a DynamoDB single-table design. All entities share one table per en
 | User profile | `USER#<userId>` | `PROFILE` | `displayName`, `role`, `passwordHash`, `showOnLoginRoster`, `disabledAt`, `lastLoginAt`, `email` |
 | Folder | `USER#<userId>` | `FOLDER#<folderId>` | `parentFolderId`, `name`, `createdAt`, `updatedAt`, `deletedAt` |
 | File | `USER#<userId>` | `FILE#<fileId>` | `folderId`, `originalName`, `displayName`, `s3Bucket`, `s3Key`, `etag`, `status`, `sizeBytes`, `mimeType`, `source`, `sourceProviderFileId`, `createdAt`, `updatedAt`, `deletedAt` |
+| Provider connection | `USER#<userId>` | `PROVIDER#<provider>` | `provider`, `accountId`, encrypted access/refresh token fields, `expiresAt`, `scope`, `createdAt`, `updatedAt` |
 | Share link | `SHARE#<token>` | `META` | `fileId`, `ownerUserId`, `shareToken`, `expiresAt`, `revokedAt`, `allowPreview`, `allowDownload`, `lastAccessedAt`, `createdAt` |
 | Upload session | `USER#<userId>` | `UPLOAD#<sessionId>` | `fileId`, `status`, `uploadType`, `s3MultipartUploadId`, `expectedSizeBytes`, `createdAt`, `completedAt`, `ttl` |
 | Audit event | `USER#<targetUserId>` | `AUDIT#<isoTs>#<eventId>` | `actorUserId`, `eventType`, `entityType`, `entityId`, `metadataJson`, `createdAt` |

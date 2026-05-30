@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { listFilesInFolder } from "@/lib/repos/files";
 import { getFolderById } from "@/lib/repos/folders";
 import { getFamilyShare, getUserShare } from "@/lib/repos/family-shares";
-import { createPresignedPreviewUrl } from "@/lib/aws/presign";
+import { shouldGeneratePreview } from "@/lib/previews";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -39,8 +39,8 @@ export async function GET(request: Request) {
   const withPreviews = await Promise.all(
     files.map(async (f) => ({
       ...f,
-      previewUrl: f.mimeType.startsWith("image/")
-        ? await createPresignedPreviewUrl(f.s3Key)
+      previewUrl: shouldGeneratePreview(f.mimeType, f.displayName)
+        ? `/api/sharing/thumbnail?owner=${ownerUserId}&fileId=${f.id}`
         : null,
     }))
   );

@@ -6,7 +6,9 @@ import {
   ScanCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { ulid } from "ulid";
+import { s3, S3_BUCKET } from "@/lib/aws/s3";
 import { ddb, TABLE_NAME } from "@/lib/aws/ddb";
 
 export interface FileRecord {
@@ -19,7 +21,8 @@ export interface FileRecord {
   s3Key: string;
   etag?: string;
   status: "pending_upload" | "available" | "deleted" | "failed";
-  source: "manual_upload";
+  source: "manual_upload" | "google_drive" | "onedrive" | "dropbox" | "icloud_manual";
+  sourceProviderFileId?: string;
   sizeBytes: number;
   mimeType: string;
   createdAt: string;
@@ -67,6 +70,48 @@ export async function createFilePending(params: {
     GSI2PK: `USER#${params.ownerUserId}#FOLDER#${params.folderId}`,
     GSI2SK: params.fileName.toLowerCase(),
     GSI3PK: `USER#${params.ownerUserId}#STATUS#pending_upload`,
+    GSI3SK: now,
+  };
+  await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
+  return itemToFile(item);
+}
+
+export async function createImportedFileAvailable(params: {
+  fileId?: string;
+  ownerUserId: string;
+  folderId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  s3Bucket: string;
+  s3Key: string;
+  etag?: string;
+  source: Exclude<FileRecord["source"], "manual_upload" | "icloud_manual">;
+  sourceProviderFileId: string;
+}): Promise<FileRecord> {
+  const now = new Date().toISOString();
+  const fileId = params.fileId ?? ulid();
+  const item = {
+    PK: `USER#${params.ownerUserId}`,
+    SK: `FILE#${fileId}`,
+    id: fileId,
+    ownerUserId: params.ownerUserId,
+    folderId: params.folderId,
+    originalName: params.fileName,
+    displayName: params.fileName,
+    s3Bucket: params.s3Bucket,
+    s3Key: params.s3Key,
+    ...(params.etag ? { etag: params.etag } : {}),
+    status: "available",
+    source: params.source,
+    sourceProviderFileId: params.sourceProviderFileId,
+    sizeBytes: params.sizeBytes,
+    mimeType: params.mimeType,
+    createdAt: now,
+    updatedAt: now,
+    GSI2PK: `USER#${params.ownerUserId}#FOLDER#${params.folderId}`,
+    GSI2SK: params.fileName.toLowerCase(),
+    GSI3PK: `USER#${params.ownerUserId}#STATUS#available`,
     GSI3SK: now,
   };
   await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
@@ -128,6 +173,23 @@ export async function listFilesInFolder(
       ExpressionAttributeValues: {
         ":pk": `USER#${userId}#FOLDER#${folderId}`,
         ":available": "available",
+      },
+    })
+  );
+  return (result.Items ?? []).map(itemToFile);
+}
+
+export async function listAllFilesInFolder(
+  userId: string,
+  folderId: string
+): Promise<FileRecord[]> {
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: "byFolder",
+      KeyConditionExpression: "GSI2PK = :pk",
+      ExpressionAttributeValues: {
+        ":pk": `USER#${userId}#FOLDER#${folderId}`,
       },
     })
   );
@@ -290,6 +352,15 @@ export async function permanentlyDeleteFile(
   );
 }
 
+export async function deleteFileObject(s3Key: string): Promise<void> {
+  await s3.send(
+    new DeleteObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: s3Key,
+    })
+  );
+}
+
 export async function getUserStorageBytes(userId: string): Promise<number> {
   const result = await ddb.send(
     new QueryCommand({
@@ -318,12 +389,15 @@ function itemToFile(item: Record<string, unknown>): FileRecord {
     s3Bucket: item.s3Bucket as string,
     s3Key: item.s3Key as string,
     status: item.status as FileRecord["status"],
-    source: "manual_upload",
+    source: item.source as FileRecord["source"],
     sizeBytes: item.sizeBytes as number,
     mimeType: item.mimeType as string,
     createdAt: item.createdAt as string,
     updatedAt: item.updatedAt as string,
     ...(item.etag ? { etag: item.etag as string } : {}),
+    ...(item.sourceProviderFileId
+      ? { sourceProviderFileId: item.sourceProviderFileId as string }
+      : {}),
     ...(item.deletedAt ? { deletedAt: item.deletedAt as string } : {}),
   };
 }

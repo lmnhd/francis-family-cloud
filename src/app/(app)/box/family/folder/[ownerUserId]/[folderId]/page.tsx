@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Folder } from "lucide-react";
 import { formatBytes, formatDate } from "@/lib/format";
+import { shouldGeneratePreview } from "@/lib/previews";
 
 interface SharedFile {
   id: string;
@@ -66,7 +67,7 @@ export default function SharedFolderPage() {
                   key={file.id}
                   className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
                 >
-                  {file.mimeType.startsWith("image/") && file.previewUrl ? (
+                  {file.previewUrl && shouldGeneratePreview(file.mimeType, file.displayName) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={file.previewUrl}

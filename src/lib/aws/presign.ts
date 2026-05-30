@@ -31,6 +31,23 @@ export async function createPresignedUploadUrl(params: {
 
 // ── Multipart ─────────────────────────────────────────────────────────────────
 
+export async function putS3Object(params: {
+  s3Key: string;
+  body: Buffer;
+  mimeType: string;
+}): Promise<{ etag: string }> {
+  const result = await s3.send(
+    new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: params.s3Key,
+      Body: params.body,
+      ContentType: params.mimeType,
+    })
+  );
+
+  return { etag: (result.ETag ?? "").replace(/"/g, "") };
+}
+
 export async function initMultipartUpload(
   s3Key: string,
   mimeType: string,

@@ -2,18 +2,44 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { FolderUp, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UploadFile {
+  id: number;
   name: string;
   state: "pending" | "uploading" | "done" | "error";
   progress: number;
   error?: string;
 }
 
+interface UploadCandidate {
+  file: File;
+  relativePath?: string;
+}
+
 interface Props {
   folderId: string;
+}
+
+interface BrowserFileSystemEntry {
+  isFile: boolean;
+  isDirectory: boolean;
+  name: string;
+  fullPath?: string;
+}
+
+interface BrowserFileSystemFileEntry extends BrowserFileSystemEntry {
+  file: (success: (file: File) => void, error: (error: DOMException) => void) => void;
+}
+
+interface BrowserFileSystemDirectoryEntry extends BrowserFileSystemEntry {
+  createReader: () => {
+    readEntries: (
+      success: (entries: BrowserFileSystemEntry[]) => void,
+      error: (error: DOMException) => void
+    ) => void;
+  };
 }
 
 // Upload a single chunk via XHR. Returns the ETag header from S3.
@@ -44,38 +70,158 @@ function uploadChunk(
   });
 }
 
+function getBrowserRelativePath(file: File): string | undefined {
+  return (file as File & { webkitRelativePath?: string }).webkitRelativePath || undefined;
+}
+
+function cleanPathSegments(relativePath?: string): string[] {
+  if (!relativePath) return [];
+  const segments = relativePath.split("/").filter(Boolean);
+  return segments.slice(0, -1).filter((segment) => segment !== "." && segment !== "..");
+}
+
+function normalizeRelativePath(value?: string): string | undefined {
+  if (!value) return undefined;
+  return value.replace(/^\/+/, "").replace(/\\/g, "/");
+}
+
+function getEntryRelativePath(entry: BrowserFileSystemEntry, parentPath = ""): string {
+  const directPath = normalizeRelativePath(entry.fullPath);
+  if (directPath) return directPath;
+  return parentPath ? `${parentPath}/${entry.name}` : entry.name;
+}
+
+function dedupeUploadCandidates(candidates: UploadCandidate[]): UploadCandidate[] {
+  const seen = new Set<string>();
+  return candidates.filter(({ file, relativePath }) => {
+    const key = `${relativePath ?? file.name}::${file.size}::${file.lastModified}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function ensureFolderPath(
+  parentFolderId: string,
+  segments: string[],
+  cache: Map<string, string>
+): Promise<string> {
+  if (segments.length === 0) return parentFolderId;
+
+  const key = segments.join("/");
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const res = await fetch("/api/folders/ensure-path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parentFolderId, pathSegments: segments }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: "Could not create folder path" }));
+    throw new Error(error);
+  }
+
+  const { folderId } = (await res.json()) as { folderId: string };
+  cache.set(key, folderId);
+  return folderId;
+}
+
+function readFileEntry(
+  entry: BrowserFileSystemFileEntry,
+  relativePath: string
+): Promise<UploadCandidate> {
+  return new Promise((resolve, reject) => {
+    entry.file(
+      (file) => resolve({ file, relativePath }),
+      (error) => reject(error)
+    );
+  });
+}
+
+async function readDirectoryEntries(
+  entry: BrowserFileSystemDirectoryEntry
+): Promise<BrowserFileSystemEntry[]> {
+  const reader = entry.createReader();
+  const entries: BrowserFileSystemEntry[] = [];
+
+  while (true) {
+    const batch = await new Promise<BrowserFileSystemEntry[]>((resolve, reject) => {
+      reader.readEntries(resolve, reject);
+    });
+    if (batch.length === 0) break;
+    entries.push(...batch);
+  }
+
+  return entries;
+}
+
+async function walkEntry(
+  entry: BrowserFileSystemEntry,
+  parentPath = ""
+): Promise<UploadCandidate[]> {
+  const relativePath = getEntryRelativePath(entry, parentPath);
+
+  if (entry.isFile) {
+    return [await readFileEntry(entry as BrowserFileSystemFileEntry, relativePath)];
+  }
+
+  if (entry.isDirectory) {
+    const children = await readDirectoryEntries(entry as BrowserFileSystemDirectoryEntry);
+    const nested = await Promise.all(children.map((child) => walkEntry(child, relativePath)));
+    return nested.flat();
+  }
+
+  return [];
+}
+
 export function UploadDropzone({ folderId }: Props) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const uploadIdRef = useRef(0);
   const [dragging, setDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadFile[]>([]);
 
   const uploadFiles = useCallback(
-    async (files: File[]) => {
-      const startIdx = uploads.length;
-      setUploads((prev) => [
-        ...prev,
-        ...files.map((f) => ({ name: f.name, state: "pending" as const, progress: 0 })),
-      ]);
+    async (candidates: UploadCandidate[]) => {
+      const normalized = dedupeUploadCandidates(candidates.map((candidate) => ({
+        file: candidate.file,
+        relativePath: normalizeRelativePath(candidate.relativePath),
+      })));
+      const folderCache = new Map<string, string>();
+      const uploadItems = normalized.map((candidate) => ({
+        id: uploadIdRef.current++,
+        name: candidate.relativePath ?? candidate.file.name,
+        state: "pending" as const,
+        progress: 0,
+      }));
+
+      setUploads((prev) => [...prev, ...uploadItems]);
 
       await Promise.allSettled(
-        files.map(async (file, i) => {
-          const idx = startIdx + i;
+        normalized.map(async ({ file, relativePath }, i) => {
+          const uploadId = uploadItems[i].id;
           const update = (patch: Partial<UploadFile>) =>
             setUploads((prev) =>
-              prev.map((u, j) => (j === idx ? { ...u, ...patch } : u))
+              prev.map((u) => (u.id === uploadId ? { ...u, ...patch } : u))
             );
 
           try {
             update({ state: "uploading", progress: 0 });
             const mime = file.type || "application/octet-stream";
+            const targetFolderId = await ensureFolderPath(
+              folderId,
+              cleanPathSegments(relativePath),
+              folderCache
+            );
 
             // 1. Request presign (single or multipart)
             const presignRes = await fetch("/api/files/presign", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                folderId,
+                folderId: targetFolderId,
                 fileName: file.name,
                 mimeType: mime,
                 sizeBytes: file.size,
@@ -154,21 +300,43 @@ export function UploadDropzone({ folderId }: Props) {
         2000
       );
     },
-    [folderId, router, uploads.length]
+    [folderId, router]
   );
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      const f = Array.from(e.dataTransfer.files);
-      if (f.length) uploadFiles(f);
+
+      const itemEntries = Array.from(e.dataTransfer.items)
+        .map(
+          (item) =>
+            (item as unknown as { webkitGetAsEntry?: () => BrowserFileSystemEntry | null })
+              .webkitGetAsEntry?.()
+        )
+        .filter((entry): entry is BrowserFileSystemEntry => Boolean(entry));
+
+      if (itemEntries.length > 0) {
+        const nested = await Promise.all(itemEntries.map((entry) => walkEntry(entry)));
+        const candidates = nested.flat();
+        if (candidates.length) uploadFiles(candidates);
+        return;
+      }
+
+      const candidates = Array.from(e.dataTransfer.files).map((file) => ({
+        file,
+        relativePath: normalizeRelativePath(getBrowserRelativePath(file)),
+      }));
+      if (candidates.length) uploadFiles(candidates);
     },
     [uploadFiles]
   );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = Array.from(e.target.files ?? []);
+    const f = Array.from(e.target.files ?? []).map((file) => ({
+      file,
+      relativePath: normalizeRelativePath(getBrowserRelativePath(file)),
+    }));
     if (f.length) uploadFiles(f);
     e.target.value = "";
   };
@@ -181,9 +349,8 @@ export function UploadDropzone({ folderId }: Props) {
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-8 transition-colors",
+          "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-8 transition-colors",
           dragging
             ? "border-slate-400 bg-slate-100 dark:border-slate-500 dark:bg-slate-800"
             : "border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800"
@@ -191,11 +358,36 @@ export function UploadDropzone({ folderId }: Props) {
       >
         <Upload className="size-6 text-slate-400 dark:text-slate-500" />
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Drop files here or{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">browse</span>
+          Drop files or folders here
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <Upload className="size-4" />
+            Files
+          </button>
+          <button
+            type="button"
+            onClick={() => folderInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <FolderUp className="size-4" />
+            Folder
+          </button>
+        </div>
         <p className="text-xs text-slate-400 dark:text-slate-500">Up to 5 GB per file</p>
-        <input ref={inputRef} type="file" multiple className="hidden" onChange={onInputChange} />
+        <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onInputChange} />
+        <input
+          ref={folderInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={onInputChange}
+          {...{ webkitdirectory: "", directory: "" }}
+        />
       </div>
 
       {active.length > 0 && (
@@ -228,4 +420,3 @@ export function UploadDropzone({ folderId }: Props) {
     </div>
   );
 }
-

@@ -179,8 +179,7 @@ export function FileRow({
 }
 
 function FileThumbnail({ mimeType, previewUrl, name }: { mimeType: string; previewUrl?: string; name: string }) {
-  const isImage = mimeType.startsWith("image/");
-  if (isImage && previewUrl) {
+  if (previewUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={previewUrl} alt={name} className="size-10 shrink-0 rounded-md object-cover" loading="lazy" />

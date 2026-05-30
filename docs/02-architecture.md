@@ -26,6 +26,11 @@ Files ≤ 100 MB use a single presigned PUT URL. Files between 100 MB and 5 GB u
 4. Client calls `POST /api/files/[id]/complete` with the S3 key.
 5. Server calls `HeadObject` to verify the object exists, then sets status to `available`.
 
+Directory uploads use the same transfer path. Browser-supported folder selection
+or drag-and-drop sends each file with its relative path; the client first calls
+`POST /api/folders/ensure-path` to create or reuse nested metadata folders, then
+uploads each file into the matching folder.
+
 **Multipart (100 MB – 5 GB):**
 
 1. Client calls `POST /api/files/presign`. Server calls `CreateMultipartUpload` and returns a presigned `UploadPart` URL for each 10 MB chunk.
@@ -117,15 +122,22 @@ Folders are metadata only — S3 keys use stable ULIDs, never user-supplied fold
 | `DELETE /api/files/[id]/share` | Revoke share link |
 | `POST /api/files/download-urls` | Batch presigned URLs for multi-file download |
 | `POST /api/folders` | Create folder |
+| `POST /api/folders/ensure-path` | Create or reuse nested folders for directory uploads |
 | `PATCH /api/folders/[id]` | Rename folder |
 | `GET /api/folders` | List all folders (for move-file picker) |
 | `GET /api/users` | Active roster (for family share picker) |
 | `GET/POST /api/sharing` | Read or update family/user sharing |
 | `GET /api/sharing/download` | Presigned download for shared file |
+| `GET /api/sharing/thumbnail` | Authenticated thumbnail endpoint with HEIC-to-JPEG fallback |
 | `GET /api/sharing/folder` | File listing for a shared folder |
 | `GET/POST /api/admin/users` | Admin user management |
 | `PATCH /api/admin/users/[id]` | Disable, enable, reset password |
 | `GET /api/cron/cleanup` | Daily trash cleanup cron (Vercel cron, bearer auth) |
+| `GET /api/imports/dropbox/connect` | Start Dropbox OAuth |
+| `GET /api/imports/dropbox/callback` | Store encrypted Dropbox tokens after OAuth |
+| `GET /api/imports/dropbox/list` | List a connected Dropbox folder |
+| `POST /api/imports/dropbox/import` | Copy one selected Dropbox file into S3 |
+| `POST /api/imports/dropbox/disconnect` | Delete the stored Dropbox connection |
 | `PATCH /api/me` | Update own display name |
 | `PATCH /api/me/password` | Change own password |
 
@@ -136,7 +148,7 @@ Folders are metadata only — S3 keys use stable ULIDs, never user-supplied fold
 ## Background Jobs
 
 - **Vercel Cron** runs `GET /api/cron/cleanup` at 03:00 UTC daily. It scans for files soft-deleted more than 30 days ago, tags the S3 objects, and removes the DynamoDB records.
-- Provider imports (Google Drive, OneDrive, Dropbox) are deferred. When implemented they will use Vercel Cron plus DynamoDB-backed job tracking.
+- Dropbox imports now support OAuth connection, folder listing, and selected-file copy-in up to 100 MB through API routes. Larger provider imports, retries, and background job tracking remain deferred. Google Drive and OneDrive are still deferred.
 
 ## AWS Backup
 

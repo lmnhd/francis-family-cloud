@@ -16,6 +16,11 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(32),
   AUTH_URL: z.string().url(),
 
+  // Provider imports (server-only)
+  DROPBOX_APP_KEY: z.string().min(1).optional(),
+  DROPBOX_APP_SECRET: z.string().min(1).optional(),
+  DROPBOX_REDIRECT_URI: z.string().url().optional(),
+
   // Runtime
   NODE_ENV: z
     .enum(["development", "test", "production"])

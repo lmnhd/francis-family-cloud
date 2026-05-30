@@ -2,10 +2,10 @@ import type { Folder } from "@/lib/repos/folders";
 import { listSubFolders } from "@/lib/repos/folders";
 import type { FileRecord } from "@/lib/repos/files";
 import { listFilesInFolder } from "@/lib/repos/files";
-import { createPresignedPreviewUrl } from "@/lib/aws/presign";
+import { shouldGeneratePreview } from "@/lib/previews";
 import { Breadcrumb } from "@/components/box/Breadcrumb";
 import { NewFolderButton } from "@/components/box/NewFolderButton";
-import { FolderRow } from "@/components/box/FolderRow";
+import { FolderList } from "@/components/box/FolderList";
 import { FileList } from "@/components/box/FileList";
 import { ViewToggle } from "@/components/box/ViewToggle";
 import { SortSelector } from "@/components/box/SortSelector";
@@ -58,8 +58,8 @@ export async function FolderContents({
 
   const previewUrls = await Promise.all(
     files.map((f) =>
-      f.mimeType.startsWith("image/")
-        ? createPresignedPreviewUrl(f.s3Key)
+      shouldGeneratePreview(f.mimeType, f.displayName)
+        ? `/api/sharing/thumbnail?owner=${userId}&fileId=${f.id}`
         : Promise.resolve(undefined)
     )
   );
@@ -122,11 +122,7 @@ export async function FolderContents({
                     <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       Folders
                     </p>
-                    <div className="space-y-1">
-                      {subFolders.map((folder) => (
-                        <FolderRow key={folder.id} folder={folder} />
-                      ))}
-                    </div>
+                    <FolderList folders={subFolders} />
                   </section>
                 )}
 
