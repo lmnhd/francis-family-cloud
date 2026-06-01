@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
 
 interface Props {
   title: string;
@@ -48,8 +48,8 @@ export function FolderDeleteModal({ title, onConfirm, onClose, busy }: Props) {
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-60"
           >
-            <Trash2 className="size-4" />
-            {busy ? "Deleting…" : "Delete permanently"}
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            {busy ? "Deleting..." : "Delete permanently"}
           </button>
         </div>
       </div>

@@ -71,6 +71,7 @@ export function FolderList({ folders }: Props) {
           onClear={clearAll}
           onSelectAll={selectAll}
           onDelete={() => deleteSelected([...selectedIds])}
+          deleting={deleting}
         />
       )}
 

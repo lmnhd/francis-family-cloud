@@ -2,13 +2,13 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FolderUp, Upload } from "lucide-react";
+import { FolderUp, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UploadFile {
   id: number;
   name: string;
-  state: "pending" | "uploading" | "done" | "error";
+  state: "pending" | "preparing" | "uploading" | "done" | "error";
   progress: number;
   error?: string;
 }
@@ -208,13 +208,14 @@ export function UploadDropzone({ folderId }: Props) {
             );
 
           try {
-            update({ state: "uploading", progress: 0 });
+            update({ state: "preparing", progress: 0 });
             const mime = file.type || "application/octet-stream";
             const targetFolderId = await ensureFolderPath(
               folderId,
               cleanPathSegments(relativePath),
               folderCache
             );
+            update({ state: "uploading", progress: 0 });
 
             // 1. Request presign (single or multipart)
             const presignRes = await fetch("/api/files/presign", {
@@ -342,6 +343,7 @@ export function UploadDropzone({ folderId }: Props) {
   };
 
   const active = uploads.filter((u) => u.state !== "done");
+  const anyPreparing = active.some((u) => u.state === "preparing");
 
   return (
     <div className="space-y-2">
@@ -379,6 +381,12 @@ export function UploadDropzone({ folderId }: Props) {
           </button>
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500">Up to 5 GB per file</p>
+        {anyPreparing && (
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+            <Loader2 className="size-3.5 animate-spin" />
+            Preparing folder paths before upload
+          </div>
+        )}
         <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onInputChange} />
         <input
           ref={folderInputRef}
@@ -396,7 +404,12 @@ export function UploadDropzone({ folderId }: Props) {
             <li key={i} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-center gap-2 px-3 py-2 text-sm">
                 <span className="flex-1 truncate text-slate-700 dark:text-slate-300">{u.name}</span>
-                {u.state === "error" ? (
+                {u.state === "preparing" ? (
+                  <span className="shrink-0 inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Preparing
+                  </span>
+                ) : u.state === "error" ? (
                   <span className="shrink-0 text-xs text-red-500">{u.error}</span>
                 ) : (
                   <span className="shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">

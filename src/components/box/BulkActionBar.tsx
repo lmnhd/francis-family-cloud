@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Download, FolderInput, Trash2, X } from "lucide-react";
+import { CheckSquare, Download, FolderInput, Loader2, Trash2, X } from "lucide-react";
 import { MoveModal } from "./MoveModal";
 
 interface Props {
@@ -81,10 +81,8 @@ export function BulkActionBar({
 
   return (
     <>
-      {/* Full-width on mobile (with safe-area padding), centered pill on desktop */}
       <div className="fixed inset-x-3 bottom-4 z-50 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:px-4">
         <div className="flex items-center justify-between gap-1 rounded-2xl bg-slate-900 px-2 py-2 text-white shadow-2xl ring-1 ring-white/10 dark:bg-white dark:text-slate-900 dark:ring-slate-200 sm:justify-start">
-          {/* Count + select all */}
           <div className="flex items-center gap-1 px-2">
             <span className="text-sm font-semibold tabular-nums">{count}</span>
             <span className="hidden text-sm text-white/60 dark:text-slate-500 sm:inline">
@@ -104,14 +102,13 @@ export function BulkActionBar({
 
           <div className="h-6 w-px shrink-0 bg-white/15 dark:bg-slate-200" />
 
-          {/* Actions — icon-only on mobile, icon + label on sm+ */}
           <div className="flex items-center gap-0.5">
             <BarButton
               onClick={handleDownload}
               disabled={busy}
               title="Download"
-              icon={<Download className="size-4" />}
-              label={downloading ? "Downloading…" : "Download"}
+              icon={downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              label={downloading ? "Downloading..." : "Download"}
             />
             <BarButton
               onClick={() => setShowMove(true)}
@@ -124,15 +121,14 @@ export function BulkActionBar({
               onClick={handleDelete}
               disabled={busy}
               title="Delete"
-              icon={<Trash2 className="size-4" />}
-              label={deleting ? "Deleting…" : "Delete"}
+              icon={deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              label={deleting ? "Deleting..." : "Delete"}
               danger
             />
           </div>
 
           <div className="h-6 w-px shrink-0 bg-white/15 dark:bg-slate-200" />
 
-          {/* Dismiss */}
           <button
             onClick={onClear}
             title="Clear selection"

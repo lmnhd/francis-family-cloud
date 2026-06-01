@@ -186,7 +186,14 @@ export function DropboxImportPanel({ connected, defaultFolderId }: Props) {
                   onClick={() => importFile(entry)}
                   className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
-                  {busyPath === entry.pathDisplay ? "Copying" : "Import"}
+                  {busyPath === entry.pathDisplay ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Copying
+                    </span>
+                  ) : (
+                    "Import"
+                  )}
                 </button>
               )}
             </div>

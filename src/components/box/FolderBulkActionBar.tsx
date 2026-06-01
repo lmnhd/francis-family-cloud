@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckSquare, Trash2, X } from "lucide-react";
+import { CheckSquare, Loader2, Trash2, X } from "lucide-react";
 
 interface Props {
   count: number;
@@ -8,6 +8,7 @@ interface Props {
   onClear: () => void;
   onSelectAll: () => void;
   onDelete: () => void;
+  deleting?: boolean;
 }
 
 export function FolderBulkActionBar({
@@ -16,6 +17,7 @@ export function FolderBulkActionBar({
   onClear,
   onSelectAll,
   onDelete,
+  deleting,
 }: Props) {
   return (
     <div className="fixed inset-x-3 bottom-4 z-50 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:px-4">
@@ -45,8 +47,8 @@ export function FolderBulkActionBar({
             title="Delete selected folders"
             className="flex shrink-0 items-center gap-1.5 rounded-xl p-2 text-sm font-medium text-red-400 hover:bg-white/10 dark:text-red-500 dark:hover:bg-red-50 sm:px-3"
           >
-            <Trash2 className="size-4" />
-            <span className="hidden sm:inline">Delete</span>
+            {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            <span className="hidden sm:inline">{deleting ? "Deleting..." : "Delete"}</span>
           </button>
         </div>
 
