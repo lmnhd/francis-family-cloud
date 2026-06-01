@@ -1,9 +1,7 @@
 import {
-  DeleteCommand,
   GetCommand,
-  PutCommand,
   QueryCommand,
-  UpdateCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { ulid } from "ulid";
 import { ddb, TABLE_NAME } from "@/lib/aws/ddb";
@@ -22,6 +20,28 @@ export interface Folder {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
+}
+
+const FOLDER_LOOKUP_PARENT_ROOT = "ROOT";
+
+function normalizeFolderName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function buildFolderLookupKey(
+  parentFolderId: string | null,
+  name: string
+): string {
+  const parentKey = parentFolderId ?? FOLDER_LOOKUP_PARENT_ROOT;
+  return `FOLDERLOOKUP#PARENT#${parentKey}#NAME#${normalizeFolderName(name)}`;
+}
+
+function isDuplicateFolderClaimError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === "ConditionalCheckFailedException" ||
+    error.name === "TransactionCanceledException"
+  );
 }
 
 export async function getFolderById(
@@ -45,7 +65,7 @@ export async function createFolder(params: {
 }): Promise<Folder> {
   const now = new Date().toISOString();
   const folderId = ulid();
-  const item = {
+  const folderItem = {
     PK: `USER#${params.ownerUserId}`,
     SK: `FOLDER#${folderId}`,
     id: folderId,
@@ -56,8 +76,38 @@ export async function createFolder(params: {
     createdAt: now,
     updatedAt: now,
   };
-  await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
-  return itemToFolder(item);
+  const lookupItem = {
+    PK: `USER#${params.ownerUserId}`,
+    SK: buildFolderLookupKey(params.parentFolderId ?? null, params.name),
+    folderId,
+    ownerUserId: params.ownerUserId,
+    parentFolderId: params.parentFolderId ?? null,
+    name: params.name,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await ddb.send(
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Put: {
+            TableName: TABLE_NAME,
+            Item: folderItem,
+          },
+        },
+        {
+          Put: {
+            TableName: TABLE_NAME,
+            Item: lookupItem,
+            ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+          },
+        },
+      ],
+    })
+  );
+
+  return itemToFolder(folderItem);
 }
 
 export async function getOrCreateRootFolder(userId: string): Promise<Folder> {
@@ -78,12 +128,38 @@ export async function getOrCreateRootFolder(userId: string): Promise<Folder> {
     return itemToFolder(result.Items[0]);
   }
 
-  return createFolder({
-    ownerUserId: userId,
-    name: "root",
-    parentFolderId: null,
-    isRoot: true,
-  });
+  try {
+    return await createFolder({
+      ownerUserId: userId,
+      name: "root",
+      parentFolderId: null,
+      isRoot: true,
+    });
+  } catch (error) {
+    if (!isDuplicateFolderClaimError(error)) {
+      throw error;
+    }
+
+    const retry = await ddb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: buildFolderLookupKey(null, "root"),
+        },
+        ConsistentRead: true,
+      })
+    );
+
+    if (retry.Item) {
+      return getFolderById(userId, retry.Item.folderId as string).then((folder) => {
+        if (!folder) throw error;
+        return folder;
+      });
+    }
+
+    throw error;
+  }
 }
 
 export async function listSubFolders(
@@ -108,12 +184,23 @@ export async function listSubFolders(
 
 export async function findSubFolderByName(
   userId: string,
-  parentFolderId: string,
+  parentFolderId: string | null,
   name: string
 ): Promise<Folder | null> {
-  const normalized = name.trim().toLowerCase();
-  const folders = await listSubFolders(userId, parentFolderId);
-  return folders.find((folder) => folder.name.toLowerCase() === normalized) ?? null;
+  const lookup = await ddb.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: buildFolderLookupKey(parentFolderId, name),
+      },
+      ConsistentRead: true,
+    })
+  );
+
+  if (!lookup.Item) return null;
+
+  return getFolderById(userId, lookup.Item.folderId as string);
 }
 
 export async function ensureFolderPath(params: {
@@ -125,14 +212,35 @@ export async function ensureFolderPath(params: {
   if (!parent) throw new Error("Parent folder not found");
 
   for (const segment of params.pathSegments) {
-    const existing = await findSubFolderByName(params.ownerUserId, parent.id, segment);
-    parent =
-      existing ??
-      (await createFolder({
+    const existing = await findSubFolderByName(
+      params.ownerUserId,
+      parent.id,
+      segment
+    );
+    if (existing) {
+      parent = existing;
+      continue;
+    }
+
+    try {
+      parent = await createFolder({
         ownerUserId: params.ownerUserId,
         parentFolderId: parent.id,
         name: segment,
-      }));
+      });
+    } catch (error) {
+      if (!isDuplicateFolderClaimError(error)) {
+        throw error;
+      }
+
+      const retry = await findSubFolderByName(
+        params.ownerUserId,
+        parent.id,
+        segment
+      );
+      if (!retry) throw error;
+      parent = retry;
+    }
   }
 
   return parent;
@@ -181,16 +289,99 @@ export async function renameFolder(
   folderId: string,
   newName: string
 ): Promise<void> {
+  const folder = await getFolderById(userId, folderId);
+  if (!folder) throw new Error("Folder not found");
+
+  const trimmedName = newName.trim();
+  const currentNormalized = normalizeFolderName(folder.name);
+  const nextNormalized = normalizeFolderName(trimmedName);
+  const now = new Date().toISOString();
+  const oldLookupKey = buildFolderLookupKey(folder.parentFolderId, folder.name);
+  const newLookupKey = buildFolderLookupKey(folder.parentFolderId, trimmedName);
+
+  if (currentNormalized !== nextNormalized) {
+    const conflict = await findSubFolderByName(
+      userId,
+      folder.parentFolderId,
+      trimmedName
+    );
+    if (conflict && conflict.id !== folderId) {
+      throw new Error("A folder with that name already exists");
+    }
+  }
+
+  if (oldLookupKey === newLookupKey) {
+    await ddb.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Update: {
+              TableName: TABLE_NAME,
+              Key: { PK: `USER#${userId}`, SK: `FOLDER#${folderId}` },
+              UpdateExpression: "SET #name = :name, updatedAt = :now",
+              ExpressionAttributeNames: { "#name": "name" },
+              ExpressionAttributeValues: {
+                ":name": trimmedName,
+                ":now": now,
+              },
+            },
+          },
+          {
+            Update: {
+              TableName: TABLE_NAME,
+              Key: { PK: `USER#${userId}`, SK: oldLookupKey },
+              UpdateExpression: "SET #name = :name, updatedAt = :now",
+              ExpressionAttributeNames: { "#name": "name" },
+              ExpressionAttributeValues: {
+                ":name": trimmedName,
+                ":now": now,
+              },
+            },
+          },
+        ],
+      })
+    );
+    return;
+  }
+
   await ddb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { PK: `USER#${userId}`, SK: `FOLDER#${folderId}` },
-      UpdateExpression: "SET #name = :name, updatedAt = :now",
-      ExpressionAttributeNames: { "#name": "name" },
-      ExpressionAttributeValues: {
-        ":name": newName,
-        ":now": new Date().toISOString(),
-      },
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Delete: {
+            TableName: TABLE_NAME,
+            Key: { PK: `USER#${userId}`, SK: oldLookupKey },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE_NAME,
+            Key: { PK: `USER#${userId}`, SK: `FOLDER#${folderId}` },
+            UpdateExpression: "SET #name = :name, updatedAt = :now",
+            ExpressionAttributeNames: { "#name": "name" },
+            ExpressionAttributeValues: {
+              ":name": trimmedName,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: TABLE_NAME,
+            Item: {
+              PK: `USER#${userId}`,
+              SK: newLookupKey,
+              folderId,
+              ownerUserId: userId,
+              parentFolderId: folder.parentFolderId,
+              name: trimmedName,
+              createdAt: folder.createdAt,
+              updatedAt: now,
+            },
+            ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+          },
+        },
+      ],
     })
   );
 }
@@ -202,12 +393,14 @@ export async function deleteFolderTree(
   const folder = await getFolderById(userId, folderId);
   if (!folder || folder.isRoot) throw new Error("Folder not found");
 
-  const folderIds: string[] = [];
+  const foldersToDelete: Folder[] = [];
   const fileIds: string[] = [];
   const s3Objects: Array<{ s3Key: string }> = [];
 
   async function walk(currentFolderId: string): Promise<void> {
-    folderIds.push(currentFolderId);
+    const currentFolder = await getFolderById(userId, currentFolderId);
+    if (!currentFolder) return;
+    foldersToDelete.push(currentFolder);
 
     const files = await listAllFilesInFolder(userId, currentFolderId);
     for (const file of files) {
@@ -231,16 +424,34 @@ export async function deleteFolderTree(
     await permanentlyDeleteFile(userId, fileId);
   }
 
-  for (const id of folderIds.reverse()) {
+  for (const currentFolder of foldersToDelete.reverse()) {
     await ddb.send(
-      new DeleteCommand({
-        TableName: TABLE_NAME,
-        Key: { PK: `USER#${userId}`, SK: `FOLDER#${id}` },
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Delete: {
+              TableName: TABLE_NAME,
+              Key: { PK: `USER#${userId}`, SK: `FOLDER#${currentFolder.id}` },
+            },
+          },
+          {
+            Delete: {
+              TableName: TABLE_NAME,
+              Key: {
+                PK: `USER#${userId}`,
+                SK: buildFolderLookupKey(
+                  currentFolder.parentFolderId,
+                  currentFolder.name
+                ),
+              },
+            },
+          },
+        ],
       })
     );
   }
 
-  return { fileCount: fileIds.length, folderCount: folderIds.length };
+  return { fileCount: fileIds.length, folderCount: foldersToDelete.length };
 }
 
 function itemToFolder(item: Record<string, unknown>): Folder {

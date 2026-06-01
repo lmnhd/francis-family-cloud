@@ -14,6 +14,7 @@ The app uses a DynamoDB single-table design. All entities share one table per en
 | --- | --- | --- | --- |
 | User profile | `USER#<userId>` | `PROFILE` | `displayName`, `role`, `passwordHash`, `showOnLoginRoster`, `disabledAt`, `lastLoginAt`, `email` |
 | Folder | `USER#<userId>` | `FOLDER#<folderId>` | `parentFolderId`, `name`, `createdAt`, `updatedAt`, `deletedAt` |
+| Folder lookup | `USER#<userId>` | `FOLDERLOOKUP#PARENT#<parentFolderId|ROOT>#NAME#<normalizedName>` | `folderId`, `ownerUserId`, `parentFolderId`, `name`, `createdAt`, `updatedAt` |
 | File | `USER#<userId>` | `FILE#<fileId>` | `folderId`, `originalName`, `displayName`, `s3Bucket`, `s3Key`, `etag`, `status`, `sizeBytes`, `mimeType`, `source`, `sourceProviderFileId`, `createdAt`, `updatedAt`, `deletedAt` |
 | Provider connection | `USER#<userId>` | `PROVIDER#<provider>` | `provider`, `accountId`, encrypted access/refresh token fields, `expiresAt`, `scope`, `createdAt`, `updatedAt` |
 | Share link | `SHARE#<token>` | `META` | `fileId`, `ownerUserId`, `shareToken`, `expiresAt`, `revokedAt`, `allowPreview`, `allowDownload`, `lastAccessedAt`, `createdAt` |
@@ -74,6 +75,7 @@ Used for the trash view, pending-upload cleanup, and failed-item dashboards.
 | Public name picker | `PK = ROSTER#ACTIVE`, all SKs |
 | User profile lookup | `PK = USER#<userId>`, `SK = PROFILE` |
 | List user's folders (root) | `PK = USER#<userId>`, `SK begins_with FOLDER#` |
+| Folder name uniqueness / path lookup | `PK = USER#<userId>`, `SK = FOLDERLOOKUP#PARENT#...#NAME#...` |
 | Browse folder contents | GSI2, `GSI2PK = USER#<userId>#FOLDER#<folderId>` |
 | Search by name prefix in folder | GSI2, `begins_with(GSI2SK, <prefix>)` |
 | Trash view | GSI3, `GSI3PK = USER#<userId>#STATUS#deleted` |
