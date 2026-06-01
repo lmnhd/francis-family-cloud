@@ -84,10 +84,10 @@ export async function FolderContents({
 
           {/* Title + toolbar row */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
               {folderName}
             </h1>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5">
               <NewFolderButton parentFolderId={currentFolder.id} />
               <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
               <SortSelector current={sortCombo} viewMode={viewMode} />

@@ -64,10 +64,12 @@ export function NewFolderButton({ parentFolderId }: Props) {
   return (
     <button
       onClick={() => setOpen(true)}
-      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+      title="New folder"
+      aria-label="New folder"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:h-auto sm:w-auto sm:gap-1.5 sm:border-0 sm:px-3 sm:py-1.5 sm:text-sm"
     >
       <FolderPlus className="size-4" />
-      New folder
+      <span className="sr-only sm:not-sr-only">New folder</span>
     </button>
   );
 }

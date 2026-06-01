@@ -33,10 +33,10 @@ export function ViewToggle({ currentPath, viewMode, sortCombo }: Props) {
 
 function ToggleLink({
   href,
-  active,
-  label,
-  children,
-}: {
+      active,
+      label,
+      children,
+    }: {
   href: string;
   active: boolean;
   label: string;
@@ -47,7 +47,7 @@ function ToggleLink({
       href={href}
       title={label}
       className={cn(
-        "flex items-center justify-center px-2.5 py-1.5 text-sm transition-colors",
+        "flex h-9 w-9 items-center justify-center text-sm transition-colors sm:h-auto sm:w-auto sm:px-2.5 sm:py-1.5",
         active
           ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
           : "text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
