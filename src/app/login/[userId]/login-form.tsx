@@ -80,6 +80,10 @@ export function LoginForm({ userId, displayName }: Props) {
                 <LogIn className="size-4" />
                 {isPending ? "Signing in…" : "Sign in"}
               </Button>
+
+              <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+                Forgot your password? Ask a family admin to reset it.
+              </p>
             </form>
           </CardContent>
         </Card>

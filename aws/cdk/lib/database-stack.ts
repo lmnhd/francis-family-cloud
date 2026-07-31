@@ -70,6 +70,7 @@ export class DatabaseStack extends cdk.Stack {
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
           "dynamodb:Query",
+          "dynamodb:Scan",
           "dynamodb:DescribeTable",
         ],
         resources: [

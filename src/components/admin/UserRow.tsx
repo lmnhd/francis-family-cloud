@@ -94,7 +94,7 @@ export function UserRow({ user, currentAdminId }: Props) {
             placeholder="New password (min 8 chars)"
             minLength={8}
             required
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
           />
           <button
             type="submit"
